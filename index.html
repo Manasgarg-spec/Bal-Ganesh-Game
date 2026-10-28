@@ -1,0 +1,2096 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Bal Ganesh 3D: Puranic Quest Saga</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; -webkit-user-select: none; }
+    html, body {
+      width: 100%; height: 100%; overflow: hidden; position: fixed;
+      background: #020617; color: #f8fafc; font-family: 'Segoe UI', system-ui, sans-serif;
+      touch-action: none;
+    }
+    #canvas-container { position: absolute; inset: 0; width: 100%; height: 100%; }
+    .glass {
+      background: rgba(15, 23, 42, 0.88); backdrop-filter: blur(14px);
+      border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 12px;
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.7);
+    }
+    #top-bar {
+      position: absolute; top: 10px; left: 10px; right: 10px;
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 16px; z-index: 10;
+    }
+    .lang-btn, .btn {
+      background: rgba(30, 41, 59, 0.85); color: #cbd5e1; border: 1px solid rgba(255, 255, 255, 0.2);
+      padding: 6px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 13px;
+    }
+    .lang-btn.active { background: #f59e0b; color: #000; font-weight: bold; }
+    #stage-indicator {
+      position: absolute; top: 14px; left: 50%; transform: translateX(-50%);
+      font-weight: 800; letter-spacing: 2px; color: #f59e0b; font-size: 15px; z-index: 12;
+      text-shadow: 0 0 10px rgba(245, 158, 11, 0.6);
+    }
+    #minimap-container {
+      position: absolute; top: 60px; left: 15px; width: 110px; height: 110px;
+      border-radius: 50%; border: 2px solid #f59e0b; overflow: hidden;
+      background: rgba(2, 6, 23, 0.85); z-index: 14; box-shadow: 0 0 15px rgba(0,0,0,0.8);
+      pointer-events: none;
+    }
+    #minimap-canvas { width: 100%; height: 100%; }
+    #combat-hud {
+      position: absolute; top: 65px; left: 50%; transform: translateX(-50%);
+      width: 95%; max-width: 900px; display: flex; justify-content: space-between;
+      z-index: 10; pointer-events: none;
+    }
+    .fighter-card { width: 45%; max-width: 380px; padding: 10px 14px; }
+    .bar-bg {
+      width: 100%; height: 14px; background: rgba(0, 0, 0, 0.6);
+      border-radius: 8px; overflow: hidden; margin-top: 4px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .bar-fill { height: 100%; width: 100%; transition: width 0.15s cubic-bezier(0.2, 0.8, 0.2, 1); }
+    .p1-hp { background: linear-gradient(90deg, #f59e0b, #ef4444); }
+    .p2-hp { background: linear-gradient(90deg, #38bdf8, #818cf8); }
+    .stamina-bg { height: 5px; margin-top: 3px; }
+    .stamina-fill { background: #10b981; height: 100%; }
+    #quest-hud {
+      position: absolute; top: 60px; right: 15px; width: 300px; padding: 12px;
+      z-index: 10; pointer-events: none;
+    }
+    .compass { font-weight: 800; color: #38bdf8; display: flex; align-items: center; gap: 8px; margin-bottom: 4px; font-size: 13px; }
+    #crosshair {
+      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      width: 16px; height: 16px; pointer-events: none; z-index: 15;
+    }
+    #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #facc15; }
+    #crosshair::before { top: 7px; left: 0; width: 16px; height: 2px; }
+    #crosshair::after { top: 0; left: 7px; width: 2px; height: 16px; }
+
+    /* BGMI-STYLE INTERACTION BUTTON */
+    #bgmi-interact-btn {
+      position: absolute; top: 58%; left: 50%; transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff;
+      padding: 12px 24px; font-size: 15px; font-weight: 800; border-radius: 30px;
+      border: 2px solid #facc15; box-shadow: 0 0 20px rgba(239, 68, 68, 0.8);
+      cursor: pointer; z-index: 25; letter-spacing: 1px; animation: pulseBtn 1s infinite alternate;
+    }
+    @keyframes pulseBtn {
+      0% { transform: translate(-50%, -50%) scale(0.95); }
+      100% { transform: translate(-50%, -50%) scale(1.05); }
+    }
+
+    .overlay-screen {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; z-index: 20;
+      background: rgba(2, 6, 23, 0.94); backdrop-filter: blur(14px); padding: 15px;
+    }
+    .hidden { display: none !important; }
+    .modal-box { max-width: 680px; width: 95%; padding: 26px; text-align: center; }
+    h2 { font-size: 24px; color: #fbbf24; margin-bottom: 12px; }
+    p { font-size: 15px; line-height: 1.6; color: #e2e8f0; margin-bottom: 20px; }
+    .action-btn {
+      background: linear-gradient(135deg, #f59e0b, #d97706); color: #0f172a;
+      border: none; font-size: 15px; font-weight: 700; padding: 12px 28px;
+      border-radius: 8px; cursor: pointer; box-shadow: 0 8px 20px rgba(245, 158, 11, 0.35);
+    }
+    .action-btn:hover { transform: translateY(-2px); }
+    #cinematic-banner {
+      position: absolute; top: 12%; left: 50%; transform: translateX(-50%);
+      font-size: 20px; font-weight: 900; color: #facc15; text-shadow: 0 0 20px rgba(250, 204, 21, 0.8);
+      letter-spacing: 2px; pointer-events: none; z-index: 30; text-align: center; width: 90%;
+    }
+    #controls-hud {
+      position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%);
+      padding: 8px 20px; font-size: 13px; color: #e2e8f0; z-index: 10;
+      pointer-events: none; display: flex; gap: 12px;
+    }
+    .badge {
+      background: rgba(245, 158, 11, 0.2); border: 1px solid #f59e0b;
+      padding: 2px 6px; border-radius: 4px; font-weight: 700; color: #fbbf24;
+    }
+
+    /* ON-SCREEN MOBILE CONTROLS */
+    #touch-controls { position: absolute; inset: 0; pointer-events: none; z-index: 18; }
+    .touch-btn {
+      position: absolute; pointer-events: auto;
+      background: rgba(30, 41, 59, 0.85); border: 2px solid rgba(245, 158, 11, 0.6);
+      border-radius: 50%; width: 56px; height: 56px; color: #fff; font-weight: bold;
+      display: flex; align-items: center; justify-content: center; font-size: 11px;
+    }
+    .touch-btn:active { background: #f59e0b; color: #000; transform: scale(0.92); }
+    #touch-dpad {
+      position: absolute; bottom: 20px; left: 20px; width: 120px; height: 120px; pointer-events: auto;
+    }
+    .dpad-btn {
+      position: absolute; width: 40px; height: 40px; background: rgba(30, 41, 59, 0.85);
+      border: 1px solid #f59e0b; border-radius: 8px; color: #fbbf24; font-weight: bold;
+      display: flex; align-items: center; justify-content: center; font-size: 16px;
+    }
+    .dpad-btn:active { background: #f59e0b; color: #000; }
+    #dpad-up { top: 0; left: 40px; }
+    #dpad-down { bottom: 0; left: 40px; }
+    #dpad-left { top: 40px; left: 0; }
+    #dpad-right { top: 40px; right: 0; }
+
+    #btn-touch-atk { bottom: 25px; right: 25px; width: 64px; height: 64px; background: #d97706; }
+    #btn-touch-wave { bottom: 95px; right: 35px; }
+    #btn-touch-block { bottom: 25px; right: 100px; }
+    #btn-touch-fpp { top: 75px; right: 15px; width: 50px; height: 50px; font-size: 10px; border-radius: 8px; }
+    #btn-touch-interact { bottom: 95px; right: 110px; background: #0284c7; }
+
+    @media (max-width: 768px) {
+      #controls-hud { display: none !important; }
+      #quest-hud { width: 230px; font-size: 11px; }
+      #minimap-container { width: 85px; height: 85px; }
+    }
+  </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+  <div id="crosshair" class="hidden"></div>
+  <div id="cinematic-banner" class="hidden"></div>
+
+  <!-- CONTEXT BUTTON FOR SEVERING SACRED ELEPHANT HEAD -->
+  <button id="bgmi-interact-btn" class="hidden" onclick="triggerSeverElephantHead()">⚔️ SEVER SACRED HEAD [E]</button>
+
+  <div id="minimap-container" class="hidden">
+    <canvas id="minimap-canvas" width="120" height="120"></canvas>
+  </div>
+
+  <div id="top-bar" class="glass">
+    <div style="font-weight: 800; font-size: 16px; color: #fbbf24;">⚡ BAL GANESH: KAILASH SAGA</div>
+    <div style="display: flex; gap: 6px;">
+      <button class="lang-btn active" onclick="setLang('hinglish')">Hinglish</button>
+      <button class="lang-btn" onclick="setLang('en')">English</button>
+      <button class="lang-btn" onclick="setLang('hi')">हिन्दी</button>
+      <button class="btn" onclick="resetGame()">Restart</button>
+    </div>
+  </div>
+
+  <div id="stage-indicator" class="hidden">ROUND 1: NANDI</div>
+
+  <div id="combat-hud" class="hidden">
+    <div class="fighter-card glass">
+      <div style="display:flex; justify-content:space-between; font-weight:700; font-size:13px;">
+        <span id="p1-name" style="color: #fbbf24;">Bal Ganesh</span>
+        <span id="p1-hp-text">350/350</span>
+      </div>
+      <div class="bar-bg"><div id="p1-bar" class="bar-fill p1-hp"></div></div>
+      <div class="bar-bg stamina-bg"><div id="p1-stamina" class="bar-fill stamina-fill"></div></div>
+    </div>
+    <div class="fighter-card glass" style="text-align: right;">
+      <div style="display:flex; justify-content:space-between; font-weight:700; flex-direction:row-reverse; font-size:13px;">
+        <span id="p2-name" style="color: #38bdf8;">Opponent</span>
+        <span id="p2-hp-text">350/350</span>
+      </div>
+      <div class="bar-bg"><div id="p2-bar" class="bar-fill p2-hp"></div></div>
+      <div class="bar-bg stamina-bg"><div id="p2-stamina" class="bar-fill stamina-fill" style="float:right;"></div></div>
+    </div>
+  </div>
+
+  <div id="quest-hud" class="glass hidden">
+    <div class="compass">
+      <span id="compass-needle">🧭</span> 
+      <span>NORTH (UTTAR)</span>
+      <span id="fpp-tpp-badge" style="background:#3b82f6; color:#fff; font-size:10px; padding:2px 5px; border-radius:4px; margin-left:auto;">TPP</span>
+    </div>
+    <div style="display:flex; justify-content:space-between; margin-top:4px;">
+      <span>💎 Diamonds: <strong id="diamond-counter" style="color:#38bdf8;">0/3</strong></span>
+      <span>⛩️ Level: <strong id="level-counter" style="color:#f59e0b;">Forest</strong></span>
+    </div>
+  </div>
+
+  <!-- Touch Controls -->
+  <div id="touch-controls" class="hidden">
+    <div id="touch-dpad">
+      <div class="dpad-btn" id="dpad-up">▲</div>
+      <div class="dpad-btn" id="dpad-down">▼</div>
+      <div class="dpad-btn" id="dpad-left">◀</div>
+      <div class="dpad-btn" id="dpad-right">▶</div>
+    </div>
+    <div class="touch-btn" id="btn-touch-atk">ATK</div>
+    <div class="touch-btn" id="btn-touch-wave">SPECIAL</div>
+    <div class="touch-btn" id="btn-touch-block">GUARD</div>
+    <div class="touch-btn" id="btn-touch-interact">ACTION</div>
+    <div class="touch-btn" id="btn-touch-fpp" onclick="toggleFPP_TPP()">FPP/TPP</div>
+  </div>
+
+  <!-- Start Screen -->
+  <div id="start-modal" class="overlay-screen">
+    <div class="modal-box glass">
+      <h2 id="modal-title">Bal Ganesh: Mount Kailash Odyssey</h2>
+      <p id="modal-desc">Kailash dwar yuddh, Trimukhi Brahma Dev, Mahadev ka Rudra Tandav, 4-Legged Moving Animals, aur Nandi / Gana Commander ka 3D Quest!</p>
+      <button class="action-btn" onclick="startStory()">Enter Experience</button>
+    </div>
+  </div>
+
+  <!-- Dialogues Modal -->
+  <div id="dialogue-modal" class="overlay-screen hidden">
+    <div class="modal-box glass">
+      <h2 id="speaker-title" style="color: #f59e0b;">Mata Parvati</h2>
+      <p id="story-content">Dialogue goes here...</p>
+      <button class="action-btn" id="dialogue-btn" onclick="nextDialogueStep()">Next</button>
+    </div>
+  </div>
+
+  <!-- Hero Select Modal for Quest -->
+  <div id="quest-hero-modal" class="overlay-screen hidden">
+    <div class="modal-box glass">
+      <h2 style="color: #fbbf24;">Select Quest Champion</h2>
+      <p>Uttar disha me Bhool-bhulaiya aur Mahagufa me kiske roop me jana chahte ho? Dono ke paas Normal Attack aur Special Shaktiyan hain!</p>
+      <div style="display: flex; justify-content: center; gap: 15px;">
+        <button class="action-btn" onclick="selectQuestHero('nandi')">🐂 Play as Nandi<br><small style="font-size:11px;">Normal Attack + Vrishabha Charge</small></button>
+        <button class="action-btn" style="background: linear-gradient(135deg, #0284c7, #0369a1); color:#fff;" onclick="selectQuestHero('asur')">⚔️ Play as Gana Commander<br><small style="font-size:11px;">Normal Attack + Pashupat Flame</small></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Riddle Modal -->
+  <div id="riddle-modal" class="overlay-screen hidden">
+    <div class="modal-box glass">
+      <h2 id="riddle-title" style="color:#38bdf8;">Elephant Guardian Monster</h2>
+      <p id="riddle-text">Riddle text...</p>
+      <div id="riddle-options"></div>
+    </div>
+  </div>
+
+  <!-- Fighter Selection Screen -->
+  <div id="fighter-modal" class="overlay-screen hidden">
+    <div class="modal-box glass">
+      <h2 id="choice-head">Choose Your Champion</h2>
+      <p id="choice-body">Is duel me kiske roop me ladna chahte ho?</p>
+      <div style="display: flex; justify-content: center; gap: 12px;" id="choice-btn-group"></div>
+    </div>
+  </div>
+
+  <div id="controls-hud" class="glass">
+    <div id="ctrl-combat">
+      <span class="badge">A / D</span> Move | <span class="badge">Space</span> Attack | <span class="badge">Q</span> Special | <span class="badge">K</span> Block
+    </div>
+    <div id="ctrl-quest" class="hidden">
+      <span class="badge">W / A / S / D</span> Run | <span class="badge">Space</span> Normal Attack | <span class="badge">V</span> Toggle FPP/TPP | <span class="badge">Q</span> Special | <span class="badge">E</span> Action
+    </div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <script>
+    window.addEventListener('keydown', function(e) {
+      if (['Space', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.code)) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+
+    const dict = {
+      en: {
+        title: "Bal Ganesh: Mount Kailash Odyssey",
+        desc: "Kailash Gate Battles, Trimukhi Brahma Dev, Mahadev Tandav & Slow-Mo Trishul, 4-Legged Forest Animals, and Elephant Consecration!",
+        parvatiTitle: "Mata Parvati", shivaTitle: "Lord Shiva", ganeshTitle: "Bal Ganesh", nandiTitle: "Nandi", asurTitle: "Gana Commander", brahmaTitle: "Trimukhi Brahma Dev",
+        dialogue1: "My son, guard this sacred gate. Let no soul enter without my explicit command!",
+        dialogue2: "Step aside, child! I am Shiva, master of this realm.",
+        dialogue3: "Halt! My mother's order stands higher than all creation!",
+        dialogue_asur: "The Gana Army charges forth in rage!",
+        dialogue_brahma: "Trimukhi Brahma Dev arrives: 'Child, cosmic equilibrium cannot be violated!'",
+        dialogue_brahma_ganesh: "O Grandfather Brahma! A mother's decree knows no fear of gods or weapons!",
+        dialogue_shiva_tandav: "Mahadev begins the cosmic Rudra Tandav! Mount Kailash shakes under celestial fury!",
+        dialogue_decap: "Mahadev's Trident strikes with divine speed! Bal Ganesh's head falls to earth.",
+        dialogue_parvati_rage: "My son! What have you done? Until my child lives again, the three worlds shall burn to dust!",
+        dialogue_brahma_quest: "Lord Brahma: 'Go North! Choose Nandi or Gana Commander, solve the 3 trials, clear the Guardian Monster riddles, and bring the sacred elephant head!'",
+        dialogue_revival: "Lord Shiva kneels peacefully without any weapons, holding the sacred elephant head in his divine hands! Gajanand awakens as Pratham Pujya!",
+        dialogue_boons: "All Devas shower flowers: 'Henceforth you are Pratham Pujya! Every sacred task begins with your grace!'"
+      },
+      hi: {
+        title: "बाल गणेश: कैलाश महा-गाथा",
+        desc: "कैलाश द्वार संग्राम, त्रिमुखी ब्रह्मदेव, महादेव का तांडव, 4 पैरों वाले वन्य पशु, गज रक्षक की पहेलियां और मस्तक स्थापना!",
+        parvatiTitle: "माता पार्वती", shivaTitle: "भगवान शिव", ganeshTitle: "बाल गणेश", nandiTitle: "नंदी", asurTitle: "गण सेनापति", brahmaTitle: "त्रिमुखी ब्रह्मदेव",
+        dialogue1: "मेरे पुत्र, इस पवित्र द्वार की रक्षा करो। मेरी आज्ञा के बिना कोई भी भीतर न आ सके!",
+        dialogue2: "मार्ग छोड़ो बालक! मैं शिव हूँ और यह मेरा धाम है।",
+        dialogue3: "रुकिए! मेरी माता का आदेश समस्त लोकों से सर्वोच्च है!",
+        dialogue_asur: "शिव-गणों की विशाल सेना क्रोध से आगे बढ़ती है!",
+        dialogue_brahma: "त्रिमुखी ब्रह्मदेव प्रकट हुए: 'बालक, ब्रह्मांडीय नियमों के सम्मुख झुक जाओ!'",
+        dialogue_brahma_ganesh: "हे ब्रह्मदेव! माता की आज्ञा के सम्मुख मुझे किसी भी अस्त्र या शक्ति का भय नहीं!",
+        dialogue_shiva_tandav: "देवाधिदेव महादेव ने रुद्र तांडव आरंभ किया! समस्त कैलाश कांप उठा!",
+        dialogue_decap: "महादेव का दिव्य त्रिशूल चला! बालक गणेश का मस्तक धड़ से अलग होकर भूमि पर जा गिरा।",
+        dialogue_parvati_rage: "मेरे पुत्र! जब तक मेरा बालक जीवित नहीं होता, यह सृष्टि शांत नहीं होगी!",
+        dialogue_brahma_quest: "ब्रह्मदेव: 'उत्तर दिशा में जाओ! नंदी या गण सेनापति बनकर 3 स्तर पार करो, गज रक्षक से पहेलियां सुलझाओ और पवित्र गज-शिशु का मस्तक लाओ!'",
+        dialogue_revival: "महादेव ने बिना किसी त्रिशूल के स्वयं अपने हाथों से गज-मस्तक स्थापित किया! गजानन उठ खड़े हुए!",
+        dialogue_boons: "समस्त देवों ने पुष्पवर्षा की: 'तुम प्रथम पूज्य कहलाओगे! हर शुभ कार्य का आरंभ तुमसे होगा!'"
+      },
+      hinglish: {
+        title: "Bal Ganesh 3D: Puranic Quest Saga",
+        desc: "Kailash dwar yuddh, Trimukhi Brahma Dev, 4-Legged Moving Animals, Mahagufa Boss, aur Gajanand Sthapana!",
+        parvatiTitle: "Mata Parvati", shivaTitle: "Bhagwan Shiv", ganeshTitle: "Bal Ganesh", nandiTitle: "Nandi", asurTitle: "Gana Commander", brahmaTitle: "Trimukhi Brahma Dev",
+        dialogue1: "Mere putra, is pavitra dwar ki raksha karo. Meri aagya ke bina koi bhi andar na aaye!",
+        dialogue2: "Rasta chhod do balak! Main Shiv hoon aur ye mera sthan hai.",
+        dialogue3: "Ruk jaiye! Mata ki aagya se badhkar is srishti me kuch nahi!",
+        dialogue_asur: "Nandi ke girte hi Shiv-Ganon ki sena krodhit hokar aage badhti hai!",
+        dialogue_brahma: "Trimukhi Brahma Dev 3 sar ke sath aate hain: 'Balak, krodh tyago aur rasta do!'",
+        dialogue_brahma_ganesh: "Brahma Dev! Maa ke aadesh ke aage mujhe kisi shakti ka darr nahi!",
+        dialogue_shiva_tandav: "Mahadev ne krodh me Rudra Tandav shuru kiya! Pura Kailash hilne laga!",
+        dialogue_decap: "Mahadev ka amogh Trishul chala! Bal Ganesh zameen par behosh gir pade.",
+        dialogue_parvati_rage: "Mere putra! Jab tak mera balak zinda nahi hoga, ye srishti shant nahi hogi!",
+        dialogue_brahma_quest: "Brahma Dev ne aadesh diya: '3 Levels clear karo, hathi ke Guardian Monster ki 3 riddles solve karo aur bina lade ya ladkar mastak lao!'",
+        dialogue_revival: "Bhagwan Shiv bina trishul ke apne dono haathon se gaj-mastak sthaapit karte hain! Balak Gajanand roop me uth khade huye!",
+        dialogue_boons: "Devtao ne pushp-varsha ki: 'Tum Pratham Pujya banoge! Har shubh karya ka aagaz tumhare naam se hoga!'"
+      }
+    };
+
+    let lang = 'hinglish';
+    function setLang(l) {
+      lang = l;
+      document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+      event.target.classList.add('active');
+      const d = dict[lang];
+      document.getElementById('modal-title').innerText = d.title;
+      document.getElementById('modal-desc').innerText = d.desc;
+    }
+
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    let audioCtx = null;
+    function initAudio() { if (!audioCtx) audioCtx = new AudioCtx(); }
+
+    function soundWhoosh(pitch = 380) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sine'; osc.frequency.setValueAtTime(pitch, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(80, audioCtx.currentTime + 0.18);
+      gain.gain.setValueAtTime(0.35, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.18);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.18);
+    }
+
+    function soundHit(heavy = false) {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = heavy ? 'sawtooth' : 'triangle';
+      osc.frequency.setValueAtTime(heavy ? 90 : 160, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.25);
+      gain.gain.setValueAtTime(heavy ? 0.8 : 0.45, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.25);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.25);
+    }
+
+    function soundLightning() {
+      if (!audioCtx) return;
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'sawtooth'; osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+      osc.frequency.exponentialRampToValueAtTime(30, audioCtx.currentTime + 0.8);
+      gain.gain.setValueAtTime(1.0, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
+      osc.connect(gain); gain.connect(audioCtx.destination);
+      osc.start(); osc.stop(audioCtx.currentTime + 0.8);
+    }
+
+    function soundChime() {
+      if (!audioCtx) return;
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine'; osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0.25, audioCtx.currentTime + i * 0.12);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + i * 0.12 + 1.2);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(audioCtx.currentTime + i * 0.12);
+        osc.stop(audioCtx.currentTime + i * 0.12 + 1.2);
+      });
+    }
+
+    // --- THREE.JS ENGINE SETUP ---
+    const container = document.getElementById('canvas-container');
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x0a0f1d, 0.015);
+
+    const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const CAM_DEFAULT_Y = 5.0;
+    const CAM_DEFAULT_Z = 14.0;
+    camera.position.set(0, CAM_DEFAULT_Y, CAM_DEFAULT_Z);
+    camera.lookAt(0, 1.8, 0);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.shadowMap.enabled = true;
+    container.appendChild(renderer.domElement);
+
+    const hemiLight = new THREE.HemisphereLight(0xdbeafe, 0x1e1b4b, 0.7);
+    scene.add(hemiLight);
+
+    const dirLight = new THREE.DirectionalLight(0xfef08a, 1.4);
+    dirLight.position.set(15, 30, 15);
+    dirLight.castShadow = true;
+    scene.add(dirLight);
+
+    // --- MOUNT KAILASH 3D BACKDROP PEAKS ---
+    const kailashBackdrop = new THREE.Group();
+    const mountainMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.8 });
+    const snowCapMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.3 });
+
+    for (let m = -3; m <= 3; m++) {
+      const h = 25 + Math.abs(m === 0 ? 15 : (5 - Math.abs(m) * 3));
+      const mBase = new THREE.Mesh(new THREE.ConeGeometry(12, h, 6), mountainMat);
+      mBase.position.set(m * 18, h / 2 - 2, -35);
+      const mSnow = new THREE.Mesh(new THREE.ConeGeometry(5, h * 0.35, 6), snowCapMat);
+      mSnow.position.set(m * 18, h - (h * 0.18), -35);
+      kailashBackdrop.add(mBase, mSnow);
+    }
+    scene.add(kailashBackdrop);
+
+    // Arena Floor
+    const arenaFloor = new THREE.Mesh(
+      new THREE.PlaneGeometry(80, 50),
+      new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.85 })
+    );
+    arenaFloor.rotation.x = -Math.PI / 2;
+    arenaFloor.receiveShadow = true;
+    scene.add(arenaFloor);
+
+    // Kailash Temple Gate
+    const gateGroup = new THREE.Group();
+    const pillarMat = new THREE.MeshStandardMaterial({ color: 0x475569, roughness: 0.5 });
+    const p1 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 7.5, 1.2), pillarMat);
+    p1.position.set(-4.5, 3.75, -5);
+    const p2 = p1.clone(); p2.position.set(4.5, 3.75, -5);
+    const lintel = new THREE.Mesh(new THREE.BoxGeometry(11, 1.2, 1.6), pillarMat);
+    lintel.position.set(0, 7.5, -5);
+    const portal = new THREE.Mesh(
+      new THREE.PlaneGeometry(8, 6.8),
+      new THREE.MeshBasicMaterial({ color: 0xd97706, transparent: true, opacity: 0.35 })
+    );
+    portal.position.set(0, 3.4, -4.9);
+    gateGroup.add(p1, p2, lintel, portal);
+    scene.add(gateGroup);
+
+    // --- EXPANDED BIG JUNGLE (220x220) ---
+    const forestGroup = new THREE.Group();
+    scene.add(forestGroup);
+    forestGroup.visible = false;
+
+    const forestFloor = new THREE.Mesh(
+      new THREE.PlaneGeometry(220, 220),
+      new THREE.MeshStandardMaterial({ color: 0x0f2e1a, roughness: 0.9 })
+    );
+    forestFloor.rotation.x = -Math.PI / 2;
+    forestFloor.position.set(0, -0.05, -45);
+    forestGroup.add(forestFloor);
+
+    const treeTrunkMat = new THREE.MeshStandardMaterial({ color: 0x2e1a0f });
+    const treeFoliageMat = new THREE.MeshStandardMaterial({ color: 0x166534, roughness: 0.8 });
+    for (let i = 0; i < 75; i++) {
+      const tree = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.5, 5), treeTrunkMat);
+      trunk.position.y = 2.5;
+      const foliage = new THREE.Mesh(new THREE.ConeGeometry(2.4, 6.0, 8), treeFoliageMat);
+      foliage.position.y = 6.2;
+      tree.add(trunk, foliage);
+      const tx = (Math.random() - 0.5) * 160;
+      const tz = -Math.random() * 100 + 5;
+      if (Math.abs(tx) > 8) {
+        tree.position.set(tx, 0, tz);
+        forestGroup.add(tree);
+      }
+    }
+
+    // --- REALISTIC 4-LEGGED MOVING WILD ANIMALS (MINIMUM 5 ANIMALS) ---
+    const forestAnimals = [];
+    function create4LeggedAnimal(colorHex, x, z, scale = 1.0) {
+      const g = new THREE.Group();
+      const mat = new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.5 });
+
+      // Torso
+      const body = new THREE.Mesh(new THREE.BoxGeometry(1.2 * scale, 0.8 * scale, 2.0 * scale), mat);
+      body.position.y = 1.0 * scale;
+      g.add(body);
+
+      // Head
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.7 * scale, 0.6 * scale, 0.9 * scale), mat);
+      head.position.set(0, 1.4 * scale, 1.1 * scale);
+      g.add(head);
+
+      // 4 Articulated Moving Legs
+      const legGeo = new THREE.CylinderGeometry(0.12 * scale, 0.1 * scale, 1.0 * scale);
+      const legs = [];
+      const legPositions = [
+        [-0.45 * scale, 0.5 * scale, 0.7 * scale],  // Front Left
+        [0.45 * scale, 0.5 * scale, 0.7 * scale],   // Front Right
+        [-0.45 * scale, 0.5 * scale, -0.7 * scale], // Back Left
+        [0.45 * scale, 0.5 * scale, -0.7 * scale]   // Back Right
+      ];
+
+      for (let i = 0; i < 4; i++) {
+        const legGroup = new THREE.Group();
+        legGroup.position.set(legPositions[i][0], 1.0 * scale, legPositions[i][2]);
+        const legMesh = new THREE.Mesh(legGeo, mat);
+        legMesh.position.y = -0.5 * scale;
+        legGroup.add(legMesh);
+        g.add(legGroup);
+        legs.push(legGroup);
+      }
+
+      g.position.set(x, 0, z);
+      forestGroup.add(g);
+      forestAnimals.push({
+        group: g,
+        legs: legs,
+        baseX: x,
+        baseZ: z,
+        walkSpeed: 1.2 + Math.random() * 0.8,
+        patrolDist: 6 + Math.random() * 6,
+        timeOffset: Math.random() * 10
+      });
+    }
+
+    // 5 Unique Animals with 4 Moving Legs in Jungle
+    create4LeggedAnimal(0xa16207, -20, -10, 1.0); // 1. Golden Deer
+    create4LeggedAnimal(0x3f3f46, 25, -25, 1.3);  // 2. Wild Bull
+    create4LeggedAnimal(0xd97706, -35, -45, 1.1); // 3. Royal Tiger
+    create4LeggedAnimal(0x475569, 18, -60, 0.9);  // 4. Forest Wolf
+    create4LeggedAnimal(0x78350f, -10, -35, 1.2); // 5. Wild Boar
+
+    // 3 SPECIAL RUNIC TREES
+    function createMysticRuneTree(colorHex, symbolColor, x, z) {
+      const g = new THREE.Group();
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.9, 6), new THREE.MeshStandardMaterial({ color: 0x3d2817 }));
+      trunk.position.y = 3.0;
+      const foliage = new THREE.Mesh(new THREE.DodecahedronGeometry(3.2), new THREE.MeshStandardMaterial({ color: colorHex, roughness: 0.3 }));
+      foliage.position.y = 6.8;
+      const runeRing = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.12, 8, 24), new THREE.MeshBasicMaterial({ color: symbolColor }));
+      runeRing.position.y = 4.2;
+      const light = new THREE.PointLight(symbolColor, 3, 14);
+      light.position.y = 4.2;
+      g.add(trunk, foliage, runeRing, light);
+      g.position.set(x, 0, z);
+      return g;
+    }
+
+    const tree1Maze = createMysticRuneTree(0x0284c7, 0x38bdf8, -16, -18);   // Tree 1: Maze
+    const tree2Mandir = createMysticRuneTree(0xd97706, 0xfacc15, 18, -26);  // Tree 2: Surya Mandir
+    const tree3Mahagufa = createMysticRuneTree(0x9333ea, 0xc084fc, 0, -52); // Tree 3: Mahagufa
+    forestGroup.add(tree1Maze, tree2Mandir, tree3Mahagufa);
+
+    // Sacred Elephant Calf (Only appears after all 3 Levels are beaten!)
+    const elephantCalf = new THREE.Group();
+    const calfMat = new THREE.MeshStandardMaterial({ color: 0x64748b, roughness: 0.5 });
+    const calfBody = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.8, 3.0), calfMat);
+    calfBody.position.y = 1.4;
+    const calfHead = new THREE.Mesh(new THREE.SphereGeometry(0.9, 16, 16), calfMat);
+    calfHead.position.set(0, 2.2, 1.7);
+    const trunkMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.12, 1.4), calfMat);
+    trunkMesh.position.set(0, 1.5, 2.4); trunkMesh.rotation.x = Math.PI / 4;
+    const goldenAuraLight = new THREE.PointLight(0xfef08a, 4, 25);
+    goldenAuraLight.position.set(0, 3.0, 1.7);
+    elephantCalf.add(calfBody, calfHead, trunkMesh, goldenAuraLight);
+    elephantCalf.position.set(0, 0, -82);
+    forestGroup.add(elephantCalf);
+    elephantCalf.visible = false; // Hidden initially!
+
+    // Guardian Monster standing beside Elephant Calf
+    let elephantMonster = null;
+
+    // --- LEVEL 1: WIDE BHOOL-BHULAIYA WITH 3 DIAMONDS (RESTORED) ---
+    const mazeGroup = new THREE.Group();
+    scene.add(mazeGroup);
+    mazeGroup.visible = false;
+
+    const mazeFloor = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.6 }));
+    mazeFloor.rotation.x = -Math.PI / 2; mazeFloor.position.y = 0.01;
+    mazeGroup.add(mazeFloor);
+
+    const mazeWalls = [];
+    const wallMat = new THREE.MeshStandardMaterial({ color: 0x3f3f46, roughness: 0.4 });
+    function createSolidWall(x, z, w, d) {
+      const wall = new THREE.Mesh(new THREE.BoxGeometry(w, 5, d), wallMat);
+      wall.position.set(x, 2.5, z);
+      mazeGroup.add(wall);
+      mazeWalls.push({ minX: x - w / 2 - 0.8, maxX: x + w / 2 + 0.8, minZ: z - d / 2 - 0.8, maxZ: z + d / 2 + 0.8 });
+    }
+    createSolidWall(0, -45, 90, 2); createSolidWall(0, 45, 90, 2);
+    createSolidWall(-45, 0, 2, 90); createSolidWall(45, 0, 2, 90);
+    createSolidWall(-20, 25, 42, 2); createSolidWall(-12, 0, 2, 38);
+    createSolidWall(18, 15, 2, 45); createSolidWall(25, -15, 36, 2);
+    createSolidWall(6, -20, 2, 38); createSolidWall(-25, -12, 34, 2);
+
+    // 3 GLOWING COSMIC DIAMONDS RESTORED IN MAZE
+    const mazeDiamonds = [];
+    function createMazeDiamond(x, z, colorHex) {
+      const g = new THREE.Group();
+      const mesh = new THREE.Mesh(new THREE.OctahedronGeometry(0.85), new THREE.MeshStandardMaterial({ color: colorHex, emissive: colorHex, emissiveIntensity: 1.8 }));
+      mesh.position.y = 1.6;
+      const light = new THREE.PointLight(colorHex, 3, 14); light.position.y = 1.6;
+      g.add(mesh, light); g.position.set(x, 0, z);
+      mazeGroup.add(g);
+      mazeDiamonds.push({ group: g, mesh: mesh, collected: false, x: x, z: z });
+    }
+    createMazeDiamond(-30, 10, 0x38bdf8);
+    createMazeDiamond(30, -30, 0xf59e0b);
+    createMazeDiamond(-25, -35, 0x10b981);
+
+    const mazeExitStone = new THREE.Mesh(
+      new THREE.CylinderGeometry(1.8, 1.8, 0.5, 16),
+      new THREE.MeshStandardMaterial({ color: 0xef4444, emissive: 0xb91c1c })
+    );
+    mazeExitStone.position.set(32, 0.25, 32);
+    mazeGroup.add(mazeExitStone);
+
+    // --- LEVEL 2: SURYA MANDIR ---
+    const mandirGroup = new THREE.Group();
+    scene.add(mandirGroup);
+    mandirGroup.visible = false;
+    const mandirFloor = new THREE.Mesh(new THREE.PlaneGeometry(60, 60), new THREE.MeshStandardMaterial({ color: 0x311a08 }));
+    mandirFloor.rotation.x = -Math.PI / 2; mandirFloor.position.y = 0.01;
+    mandirGroup.add(mandirFloor);
+    const suryaAltar = new THREE.Mesh(new THREE.OctahedronGeometry(1.4), new THREE.MeshStandardMaterial({ color: 0xf59e0b, emissive: 0xf59e0b, emissiveIntensity: 1.8 }));
+    suryaAltar.position.set(0, 1.6, -12);
+    mandirGroup.add(suryaAltar);
+
+    // --- LEVEL 3: MAHAGUFA ---
+    const mahagufaGroup = new THREE.Group();
+    scene.add(mahagufaGroup);
+    mahagufaGroup.visible = false;
+    const gufaFloor = new THREE.Mesh(new THREE.PlaneGeometry(70, 70), new THREE.MeshStandardMaterial({ color: 0x09070f, roughness: 0.9 }));
+    gufaFloor.rotation.x = -Math.PI / 2; gufaFloor.position.y = 0.01;
+    mahagufaGroup.add(gufaFloor);
+
+    // Ambient Sparks
+    const pCount = 100;
+    const pGeo = new THREE.BufferGeometry();
+    const pPos = new Float32Array(pCount * 3);
+    for (let i = 0; i < pCount * 3; i += 3) {
+      pPos[i] = (Math.random() - 0.5) * 40;
+      pPos[i + 1] = Math.random() * 12;
+      pPos[i + 2] = (Math.random() - 0.5) * 25;
+    }
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+    const particleSystem = new THREE.Points(pGeo, new THREE.PointsMaterial({ color: 0xfde047, size: 0.1, transparent: true, opacity: 0.8 }));
+    scene.add(particleSystem);
+
+    const sparks = [];
+    function createHitSpark(x, y, z, count = 16) {
+      const g = new THREE.BufferGeometry();
+      const pos = new Float32Array(count * 3);
+      const vel = [];
+      for (let i = 0; i < count; i++) {
+        pos[i*3] = x; pos[i*3+1] = y; pos[i*3+2] = z;
+        vel.push(new THREE.Vector3((Math.random()-0.5)*8, (Math.random()+0.2)*7, (Math.random()-0.5)*8));
+      }
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const pts = new THREE.Points(g, new THREE.PointsMaterial({ color: 0xffedd5, size: 0.15, transparent: true, opacity: 1 }));
+      scene.add(pts);
+      sparks.push({ mesh: pts, vel: vel, life: 0.35 });
+    }
+
+    const shockwaves = [];
+    function spawnShockwave(x, y, z) {
+      const ringGeo = new THREE.RingGeometry(0.2, 0.4, 32);
+      const ringMat = new THREE.MeshBasicMaterial({ color: 0xfacc15, side: THREE.DoubleSide, transparent: true, opacity: 0.9 });
+      const ring = new THREE.Mesh(ringGeo, ringMat);
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(x, y, z);
+      scene.add(ring);
+      shockwaves.push({ mesh: ring, scale: 1, opacity: 0.9 });
+    }
+
+    // --- CHARACTER FACTORY: PROPORTIONS & TRIMUKHI BRAHMA ---
+    function buildCharacter(type, withoutWeapons = false) {
+      const root = new THREE.Group();
+      let color = 0xf59e0b;
+      let scale = 1.0;
+
+      if (type === 'ganesha') {
+        color = 0xf59e0b;
+        scale = 0.85; // Bal-roop (Child)
+      } else if (type === 'shiva') {
+        color = 0x0284c7;
+        scale = 1.45; // Mahadev towering height!
+      } else if (type === 'brahma') {
+        color = 0xfde047;
+        scale = 1.35;
+      } else if (type === 'nandi') {
+        color = 0x94a3b8;
+        scale = 1.25;
+      } else if (type === 'asur' || type === 'soldier') {
+        color = 0x831843;
+        scale = 1.25;
+      } else if (type === 'caveboss' || type === 'monster') {
+        color = 0x991b1b;
+        scale = 1.6; // Towering Guardian Monster
+      }
+
+      root.scale.set(scale, scale, scale);
+
+      const torsoMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.35 });
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.85, 1.2, 0.55), torsoMat);
+      torso.position.y = 1.6; root.add(torso); root.torso = torso;
+
+      const headGroup = new THREE.Group();
+      headGroup.position.set(0, 0.95, 0);
+      const headMat = new THREE.MeshStandardMaterial({ color: color, roughness: 0.3 });
+
+      if (type === 'brahma') {
+        // TRIMUKHI: EXACT 3 VISIBLE HEADS OF BRAHMA DEV!
+        const headCenter = new THREE.Mesh(new THREE.SphereGeometry(0.32, 16, 16), headMat);
+        const headLeft = new THREE.Mesh(new THREE.SphereGeometry(0.30, 16, 16), headMat);
+        headLeft.position.set(-0.35, 0, 0.05); headLeft.rotation.y = -Math.PI / 4;
+        const headRight = new THREE.Mesh(new THREE.SphereGeometry(0.30, 16, 16), headMat);
+        headRight.position.set(0.35, 0, 0.05); headRight.rotation.y = Math.PI / 4;
+        headGroup.add(headCenter, headLeft, headRight);
+
+        // Triple Crowns (Mukut)
+        const crownMat = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.9 });
+        const c1 = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.45, 8), crownMat); c1.position.set(0, 0.45, 0);
+        const c2 = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.35, 8), crownMat); c2.position.set(-0.35, 0.42, 0.05);
+        const c3 = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.35, 8), crownMat); c3.position.set(0.35, 0.42, 0.05);
+        headGroup.add(c1, c2, c3);
+
+        const halo = new THREE.Mesh(new THREE.TorusGeometry(0.7, 0.06, 12, 32), new THREE.MeshBasicMaterial({ color: 0xfef08a, wireframe: true }));
+        halo.position.set(0, 0.4, -0.2); headGroup.add(halo);
+      } else {
+        const headMesh = new THREE.Mesh(new THREE.SphereGeometry(0.36, 16, 16), headMat);
+        headGroup.add(headMesh);
+      }
+
+      if (type === 'nandi') {
+        const h1 = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.65, 8), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+        h1.rotation.z = -0.6; h1.position.set(-0.4, 0.35, 0.1);
+        const h2 = h1.clone(); h2.rotation.z = 0.6; h2.position.set(0.4, 0.35, 0.1);
+        headGroup.add(h1, h2);
+      } else if (type === 'asur' || type === 'soldier' || type === 'caveboss' || type === 'monster') {
+        const h1 = new THREE.Mesh(new THREE.ConeGeometry(0.15, 0.8, 8), new THREE.MeshStandardMaterial({ color: 0x18181b }));
+        h1.rotation.z = -0.8; h1.position.set(-0.45, 0.4, 0);
+        const h2 = h1.clone(); h2.rotation.z = 0.8; h2.position.set(0.45, 0.4, 0);
+        headGroup.add(h1, h2);
+      } else if (type === 'shiva') {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.07), new THREE.MeshBasicMaterial({ color: 0xef4444 }));
+        eye.position.set(0, 0.05, 0.36); headGroup.add(eye);
+      }
+
+      torso.add(headGroup); root.headGroup = headGroup;
+
+      const limbMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.6 });
+      const armGeo = new THREE.CylinderGeometry(0.1, 0.09, 0.9);
+
+      const rightArm = new THREE.Group();
+      rightArm.position.set(0.55, 0.4, 0);
+      const rArmMesh = new THREE.Mesh(armGeo, limbMat);
+      rArmMesh.position.y = -0.45; rightArm.add(rArmMesh);
+      torso.add(rightArm); root.rightArm = rightArm;
+
+      const leftArm = new THREE.Group();
+      leftArm.position.set(-0.55, 0.4, 0);
+      const lArmMesh = new THREE.Mesh(armGeo, limbMat);
+      lArmMesh.position.y = -0.45; leftArm.add(lArmMesh);
+      torso.add(leftArm); root.leftArm = leftArm;
+
+      const legGeo = new THREE.CylinderGeometry(0.12, 0.1, 1.0);
+      const rightLeg = new THREE.Group();
+      rightLeg.position.set(0.25, -0.6, 0);
+      const rLegMesh = new THREE.Mesh(legGeo, limbMat);
+      rLegMesh.position.y = -0.5; rightLeg.add(rLegMesh);
+      torso.add(rightLeg); root.rightLeg = rightLeg;
+
+      const leftLeg = new THREE.Group();
+      leftLeg.position.set(-0.25, -0.6, 0);
+      const lLegMesh = new THREE.Mesh(legGeo, limbMat);
+      lLegMesh.position.y = -0.5; leftLeg.add(lLegMesh);
+      torso.add(leftLeg); root.leftLeg = leftLeg;
+
+      if (!withoutWeapons) {
+        if (type === 'ganesha') {
+          const staff = new THREE.Group();
+          const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 2.3), new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.8 }));
+          const tip = new THREE.Mesh(new THREE.SphereGeometry(0.18, 12, 12), new THREE.MeshStandardMaterial({ color: 0xfacc15 }));
+          tip.position.y = 1.15; staff.add(rod, tip);
+          staff.position.set(0, -0.7, 0.3); staff.rotation.x = Math.PI / 4;
+          rightArm.add(staff); root.staff = staff;
+        } else if (type === 'shiva') {
+          const trishul = new THREE.Group();
+          const gold = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.9 });
+          const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 3.2), gold);
+          const t1 = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.4), gold); t1.position.y = 1.7;
+          const t2 = t1.clone(); t2.position.set(-0.25, 1.45, 0);
+          const t3 = t1.clone(); t3.position.set(0.25, 1.45, 0);
+          trishul.add(rod, t1, t2, t3);
+          trishul.position.set(0, -0.7, 0.3); rightArm.add(trishul);
+          root.trishulInHand = trishul;
+        }
+      }
+
+      root.type = type;
+      return root;
+    }
+
+    function buildStandaloneTrishul() {
+      const trishul = new THREE.Group();
+      const gold = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.95, roughness: 0.1, emissive: 0xf59e0b, emissiveIntensity: 0.8 });
+      const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 3.6), gold);
+      const t1 = new THREE.Mesh(new THREE.ConeGeometry(0.12, 0.6), gold); t1.position.y = 1.9;
+      const t2 = t1.clone(); t2.position.set(-0.35, 1.55, 0);
+      const t3 = t1.clone(); t3.position.set(0.35, 1.55, 0);
+      trishul.add(rod, t1, t2, t3);
+      const auraLight = new THREE.PointLight(0xfacc15, 3, 6);
+      auraLight.position.y = 1.5; trishul.add(auraLight);
+      trishul.rotation.z = Math.PI / 2;
+      return trishul;
+    }
+
+    function buildGajanandHead() {
+      const g = new THREE.Group();
+      const headMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, roughness: 0.4, metalness: 0.2 });
+      const skull = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 16), headMat);
+      skull.scale.set(1.1, 1.2, 1.0); g.add(skull);
+
+      const trunkCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(0, 0.1, 0.4), new THREE.Vector3(0, -0.3, 0.65),
+        new THREE.Vector3(0, -0.7, 0.7), new THREE.Vector3(0.15, -0.9, 0.8)
+      ]);
+      const trunk = new THREE.Mesh(new THREE.TubeGeometry(trunkCurve, 16, 0.12, 8, false), headMat);
+      g.add(trunk);
+
+      const earMat = new THREE.MeshStandardMaterial({ color: 0xcbd5e1, roughness: 0.5 });
+      const leftEar = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.04), earMat);
+      leftEar.position.set(-0.55, 0.15, 0.1); leftEar.rotation.y = -0.3;
+      const rightEar = leftEar.clone();
+      rightEar.position.set(0.55, 0.15, 0.1); rightEar.rotation.y = 0.3;
+      g.add(leftEar, rightEar);
+
+      const crown = new THREE.Mesh(new THREE.ConeGeometry(0.25, 0.5, 8), new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.9 }));
+      crown.position.set(0, 0.65, 0); g.add(crown);
+
+      const tusk = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.3, 6), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+      tusk.rotation.x = Math.PI / 3; tusk.position.set(0.16, -0.3, 0.45);
+      g.add(tusk);
+      return g;
+    }
+
+    // --- GAME ENGINE STATE ---
+    const MAX_HP = 350;
+    const GANESH_MIN_HP = MAX_HP * 0.5; // Strictly 50% HP Rule
+    let p1Hp = MAX_HP, p2Hp = MAX_HP;
+    let p1Stamina = 100;
+    let isP1Blocking = false;
+    let comboStep = 0, comboTimer = 0, attackCooldownP1 = 0;
+    let screenShake = 0, timeScale = 1.0;
+
+    let currentStage = 1;
+    let chosenHero = 'ganesha';
+    let queuedP1Type = 'ganesha', queuedP2Type = 'nandi';
+    let fighterP1 = null, fighterP2 = null;
+    let decapitatedHead = null;
+    let flyingTrishul = null;
+    let heldElephantHead = null;
+    let mahadevRestorer = null;
+
+    let aiCooldown = 0, aiDecisionTimer = 0, aiMoveDirection = 0;
+
+    // Quest Hero Selection (Nandi or Gana Commander)
+    let selectedQuestHero = 'asur';
+    let questPos = new THREE.Vector3(0, 0, 8);
+    let questYaw = 0, questPitch = 0.35;
+    let questViewMode = 'TPP';
+    let explorerGana = null;
+
+    let currentDimension = 0; // 0: Forest, 1: Maze, 2: Mandir, 3: Mahagufa
+    let levelsCleared = 0;
+    let diamondsCollectedCount = 0;
+    let gufaFightPhase = 0;
+    let elephantHeadCutDone = false;
+
+    let cutsceneState = 0;
+    let cutsceneTimer = 0;
+    let headVelY = 0.14, headVelX = -0.07;
+
+    const ST_START = 0, ST_DIALOGUE = 1, ST_CHOICE = 2, ST_FIGHT = 3, ST_TREASURE_HUNT = 4;
+    let gameState = ST_START;
+    let dialogueIndex = 0;
+    let dialogueDebounce = false;
+
+    // Mini-map Canvas
+    const minimapCanvas = document.getElementById('minimap-canvas');
+    const minimapCtx = minimapCanvas.getContext('2d');
+
+    function drawMinimap() {
+      if (gameState !== ST_TREASURE_HUNT) return;
+      minimapCtx.clearRect(0, 0, 120, 120);
+
+      const cx = 60, cy = 60;
+      minimapCtx.save();
+      minimapCtx.translate(cx, cy);
+      minimapCtx.rotate(questYaw);
+
+      minimapCtx.strokeStyle = 'rgba(245, 158, 11, 0.35)';
+      minimapCtx.lineWidth = 1;
+      minimapCtx.beginPath();
+      minimapCtx.arc(0, 0, 50, 0, Math.PI * 2);
+      minimapCtx.arc(0, 0, 30, 0, Math.PI * 2);
+      minimapCtx.moveTo(-55, 0); minimapCtx.lineTo(55, 0);
+      minimapCtx.moveTo(0, -55); minimapCtx.lineTo(0, 55);
+      minimapCtx.stroke();
+
+      const scale = 0.75;
+      const plotPoint = (wx, wz, col) => {
+        const dx = (wx - questPos.x) * scale;
+        const dz = (wz - questPos.z) * scale;
+        if (Math.hypot(dx, dz) < 50) {
+          minimapCtx.fillStyle = col;
+          minimapCtx.beginPath();
+          minimapCtx.arc(dx, dz, 4.5, 0, Math.PI * 2);
+          minimapCtx.fill();
+        }
+      };
+
+      if (currentDimension === 0) {
+        plotPoint(-16, -18, '#38bdf8'); // Tree 1
+        plotPoint(18, -26, '#facc15');  // Tree 2
+        plotPoint(0, -52, '#c084fc');   // Tree 3
+        if (elephantCalf.visible) plotPoint(0, -82, '#22c55e');
+      }
+
+      minimapCtx.restore();
+
+      minimapCtx.fillStyle = '#ef4444';
+      minimapCtx.beginPath();
+      minimapCtx.moveTo(cx, cy - 6);
+      minimapCtx.lineTo(cx - 5, cy + 5);
+      minimapCtx.lineTo(cx + 5, cy + 5);
+      minimapCtx.closePath();
+      minimapCtx.fill();
+    }
+
+    // Key handlers
+    const keys = {};
+    window.addEventListener('keydown', e => {
+      keys[e.code] = true;
+      if (e.code === 'KeyK') isP1Blocking = true;
+      if (e.code === 'Space' || e.code === 'KeyJ') {
+        if (gameState === ST_TREASURE_HUNT) triggerQuestNormalAttack();
+        else triggerPlayerAttack();
+      }
+      if (e.code === 'KeyQ') triggerHeroSpecialPower();
+      if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') triggerPlayerDash();
+      if (e.code === 'KeyV' && gameState === ST_TREASURE_HUNT) toggleFPP_TPP();
+      if (e.code === 'KeyE') {
+        if (!document.getElementById('bgmi-interact-btn').classList.contains('hidden')) {
+          triggerSeverElephantHead();
+        } else {
+          checkQuestInteraction();
+        }
+      }
+    });
+    window.addEventListener('keyup', e => {
+      keys[e.code] = false;
+      if (e.code === 'KeyK') isP1Blocking = false;
+    });
+
+    window.addEventListener('blur', () => {
+      for (const k in keys) keys[k] = false;
+      isP1Blocking = false;
+    });
+
+    // Mouse look
+    let isMouseDown = false, prevMouseX = 0, prevMouseY = 0;
+    window.addEventListener('mousedown', e => {
+      if (gameState === ST_TREASURE_HUNT) {
+        isMouseDown = true;
+        prevMouseX = e.clientX; prevMouseY = e.clientY;
+      }
+    });
+    window.addEventListener('mouseup', () => { isMouseDown = false; });
+    window.addEventListener('mousemove', e => {
+      if (isMouseDown && gameState === ST_TREASURE_HUNT) {
+        const deltaX = e.clientX - prevMouseX;
+        const deltaY = e.clientY - prevMouseY;
+        prevMouseX = e.clientX; prevMouseY = e.clientY;
+
+        questYaw -= deltaX * 0.006;
+        questPitch += deltaY * 0.005;
+        if (questViewMode === 'FPP') {
+          questPitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 3, questPitch));
+        } else {
+          questPitch = Math.max(0.1, Math.min(Math.PI / 2.3, questPitch));
+        }
+      }
+    });
+
+    // Touch Controls
+    function setupTouchControls() {
+      const bindTouch = (id, code, isHold = false) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('touchstart', e => {
+          e.preventDefault();
+          keys[code] = true;
+          if (code === 'Space') {
+            if (gameState === ST_TREASURE_HUNT) triggerQuestNormalAttack();
+            else triggerPlayerAttack();
+          }
+          if (code === 'KeyQ') triggerHeroSpecialPower();
+          if (code === 'KeyK') isP1Blocking = true;
+          if (code === 'KeyE') {
+            if (!document.getElementById('bgmi-interact-btn').classList.contains('hidden')) {
+              triggerSeverElephantHead();
+            } else {
+              checkQuestInteraction();
+            }
+          }
+        });
+        el.addEventListener('touchend', e => {
+          e.preventDefault();
+          keys[code] = false;
+          if (code === 'KeyK') isP1Blocking = false;
+        });
+      };
+
+      bindTouch('dpad-up', 'KeyW');
+      bindTouch('dpad-down', 'KeyS');
+      bindTouch('dpad-left', 'KeyA');
+      bindTouch('dpad-right', 'KeyD');
+      bindTouch('btn-touch-atk', 'Space');
+      bindTouch('btn-touch-wave', 'KeyQ');
+      bindTouch('btn-touch-block', 'KeyK', true);
+      bindTouch('btn-touch-interact', 'KeyE');
+
+      let touchStartX = 0, touchStartY = 0;
+      window.addEventListener('touchstart', e => {
+        if (gameState === ST_TREASURE_HUNT && e.touches.length > 0 && e.touches[0].clientX > window.innerWidth / 2) {
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+        }
+      });
+      window.addEventListener('touchmove', e => {
+        if (gameState === ST_TREASURE_HUNT && e.touches.length > 0 && e.touches[0].clientX > window.innerWidth / 2) {
+          const deltaX = e.touches[0].clientX - touchStartX;
+          const deltaY = e.touches[0].clientY - touchStartY;
+          touchStartX = e.touches[0].clientX;
+          touchStartY = e.touches[0].clientY;
+
+          questYaw -= deltaX * 0.008;
+          questPitch += deltaY * 0.006;
+          questPitch = Math.max(-Math.PI / 3, Math.min(Math.PI / 2.3, questPitch));
+        }
+      });
+    }
+    setupTouchControls();
+
+    // NORMAL ATTACK FOR NANDI & GANA COMMANDER IN TREASURE HUNT
+    function triggerQuestNormalAttack() {
+      if (!explorerGana || attackCooldownP1 > 0) return;
+      attackCooldownP1 = 16;
+      soundWhoosh(selectedQuestHero === 'nandi' ? 320 : 420);
+
+      // Visual Limb Strike Animation
+      explorerGana.rightArm.rotation.x = -Math.PI * 0.75;
+      createHitSpark(questPos.x, 1.2, questPos.z - 1.2, 10);
+
+      setTimeout(() => {
+        if (explorerGana) explorerGana.rightArm.rotation.x = 0;
+      }, 150);
+    }
+
+    function toggleFPP_TPP() {
+      questViewMode = questViewMode === 'TPP' ? 'FPP' : 'TPP';
+      document.getElementById('fpp-tpp-badge').innerText = questViewMode;
+      if (questViewMode === 'FPP') {
+        document.getElementById('crosshair').classList.remove('hidden');
+        if (explorerGana) explorerGana.visible = false;
+        questPitch = 0;
+      } else {
+        document.getElementById('crosshair').classList.add('hidden');
+        if (explorerGana) explorerGana.visible = true;
+        questPitch = 0.35;
+      }
+    }
+
+    // SPECIAL HERO POWER: ZERO POPUPS, INSTANT DIRECT BLAST
+    function triggerHeroSpecialPower() {
+      if (gameState === ST_FIGHT) {
+        triggerDivineShockwave();
+        return;
+      }
+      if (gameState !== ST_TREASURE_HUNT) return;
+
+      soundLightning();
+      spawnShockwave(questPos.x, 0.2, questPos.z);
+
+      if (selectedQuestHero === 'nandi') {
+        questPos.z -= 4.5; // Rush forward
+        createHitSpark(questPos.x, 1.2, questPos.z, 35);
+      } else {
+        createHitSpark(questPos.x, 1.5, questPos.z, 60);
+      }
+    }
+
+    function startStory() {
+      initAudio();
+      document.getElementById('start-modal').classList.add('hidden');
+      gameState = ST_DIALOGUE;
+      dialogueIndex = 1;
+      showDialogue();
+    }
+
+    function showDialogue() {
+      const d = dict[lang];
+      const m = document.getElementById('dialogue-modal');
+      m.classList.remove('hidden');
+
+      if (dialogueIndex === 1) {
+        document.getElementById('speaker-title').innerText = d.parvatiTitle;
+        document.getElementById('story-content').innerText = d.dialogue1;
+      } else if (dialogueIndex === 2) {
+        document.getElementById('speaker-title').innerText = d.shivaTitle;
+        document.getElementById('story-content').innerText = d.dialogue2;
+      } else if (dialogueIndex === 3) {
+        document.getElementById('speaker-title').innerText = d.ganeshTitle;
+        document.getElementById('story-content').innerText = d.dialogue3;
+      } else if (dialogueIndex === 10) {
+        document.getElementById('speaker-title').innerText = d.asurTitle;
+        document.getElementById('story-content').innerText = d.dialogue_asur;
+      } else if (dialogueIndex === 20) {
+        document.getElementById('speaker-title').innerText = d.brahmaTitle;
+        document.getElementById('story-content').innerText = d.dialogue_brahma;
+      } else if (dialogueIndex === 21) {
+        document.getElementById('speaker-title').innerText = d.ganeshTitle;
+        document.getElementById('story-content').innerText = d.dialogue_brahma_ganesh;
+      } else if (dialogueIndex === 30) {
+        document.getElementById('speaker-title').innerText = d.shivaTitle;
+        document.getElementById('story-content').innerText = d.dialogue_shiva_tandav;
+      } else if (dialogueIndex === 35) {
+        document.getElementById('speaker-title').innerText = "Kailash Peak Event";
+        document.getElementById('story-content').innerText = d.dialogue_decap;
+      } else if (dialogueIndex === 40) {
+        document.getElementById('speaker-title').innerText = d.parvatiTitle;
+        document.getElementById('story-content').innerText = d.dialogue_parvati_rage;
+      } else if (dialogueIndex === 45) {
+        document.getElementById('speaker-title').innerText = d.brahmaTitle;
+        document.getElementById('story-content').innerText = d.dialogue_brahma_quest;
+      } else if (dialogueIndex === 50) {
+        document.getElementById('speaker-title').innerText = "Divya Drishti";
+        document.getElementById('story-content').innerText = d.dialogue_revival;
+      } else if (dialogueIndex === 51) {
+        soundChime();
+        document.getElementById('speaker-title').innerText = "Mahavardaan: Pratham Pujya";
+        document.getElementById('story-content').innerText = d.dialogue_boons;
+      }
+    }
+
+    function nextDialogueStep() {
+      if (dialogueDebounce) return;
+      dialogueDebounce = true;
+      setTimeout(() => { dialogueDebounce = false; }, 250);
+
+      document.getElementById('dialogue-modal').classList.add('hidden');
+      if (dialogueIndex === 1) { dialogueIndex = 2; showDialogue(); }
+      else if (dialogueIndex === 2) { dialogueIndex = 3; showDialogue(); }
+      else if (dialogueIndex === 3) { promptChoiceForStage(1); }
+      else if (dialogueIndex === 10) { promptChoiceForStage(2); }
+      else if (dialogueIndex === 20) { dialogueIndex = 21; showDialogue(); }
+      else if (dialogueIndex === 21) { promptChoiceForStage(3); }
+      else if (dialogueIndex === 30) { triggerShivaTandavCinematic(); }
+      else if (dialogueIndex === 35) { dialogueIndex = 40; showDialogue(); }
+      else if (dialogueIndex === 40) { dialogueIndex = 45; showDialogue(); }
+      else if (dialogueIndex === 45) { promptQuestHeroSelection(); }
+      else if (dialogueIndex === 50) { dialogueIndex = 51; showDialogue(); }
+      else if (dialogueIndex === 51) {
+        alert("Chapter 1 Completed! Bal Ganesh crowned as Pratham Pujya!");
+        resetGame();
+      }
+    }
+
+    function promptQuestHeroSelection() {
+      document.getElementById('quest-hero-modal').classList.remove('hidden');
+    }
+
+    function selectQuestHero(heroKey) {
+      selectedQuestHero = heroKey;
+      document.getElementById('quest-hero-modal').classList.add('hidden');
+      startTreasureHuntQuest();
+    }
+
+    function promptChoiceForStage(stage) {
+      currentStage = stage;
+      gameState = ST_CHOICE;
+      const group = document.getElementById('choice-btn-group');
+      group.innerHTML = '';
+
+      let oppName = stage === 1 ? 'Nandi' : (stage === 2 ? 'Gana Commander' : 'Lord Brahma');
+      let oppKey = stage === 1 ? 'nandi' : (stage === 2 ? 'asur' : 'brahma');
+
+      const btn1 = document.createElement('button');
+      btn1.className = 'action-btn'; btn1.innerText = 'Play as Bal Ganesh';
+      btn1.onclick = () => initCombatStage('ganesha', oppKey);
+
+      const btn2 = document.createElement('button');
+      btn2.className = 'action-btn';
+      btn2.style.background = 'linear-gradient(135deg, #64748b, #334155)'; btn2.style.color = '#fff';
+      btn2.innerText = `Play as ${oppName}`;
+      btn2.onclick = () => {
+        queuedP1Type = oppKey; queuedP2Type = 'ganesha';
+        initCombatStage(queuedP1Type, queuedP2Type);
+      };
+
+      group.appendChild(btn1); group.appendChild(btn2);
+      document.getElementById('fighter-modal').classList.remove('hidden');
+    }
+
+    function initCombatStage(p1Type, p2Type) {
+      chosenHero = p1Type;
+      document.getElementById('fighter-modal').classList.add('hidden');
+      document.getElementById('combat-hud').classList.remove('hidden');
+      document.getElementById('stage-indicator').classList.remove('hidden');
+      document.getElementById('crosshair').classList.add('hidden');
+      document.getElementById('touch-controls').classList.remove('hidden');
+      document.getElementById('minimap-container').classList.add('hidden');
+      gameState = ST_FIGHT;
+
+      camera.position.set(0, CAM_DEFAULT_Y, CAM_DEFAULT_Z);
+      camera.lookAt(0, 1.8, 0);
+
+      if (fighterP1) scene.remove(fighterP1);
+      if (fighterP2) scene.remove(fighterP2);
+
+      fighterP1 = buildCharacter(p1Type);
+      fighterP2 = buildCharacter(p2Type);
+
+      fighterP1.position.set(-4, 0, 0);
+      fighterP2.position.set(4, 0, 0);
+      fighterP1.rotation.y = 0; fighterP2.rotation.y = Math.PI;
+
+      scene.add(fighterP1, fighterP2);
+
+      const d = dict[lang];
+      const nameMap = { ganesha: d.ganeshTitle, nandi: d.nandiTitle, asur: d.asurTitle, brahma: d.brahmaTitle, shiva: d.shivaTitle, soldier: "Cave Soldier", caveboss: "Cave Boss", monster: "Elephant Guardian Monster" };
+      document.getElementById('p1-name').innerText = nameMap[p1Type] || p1Type;
+      document.getElementById('p2-name').innerText = nameMap[p2Type] || p2Type;
+
+      const stageLabels = ["", "ROUND 1: NANDI", "ROUND 2: GANA COMMANDER", "ROUND 3: LORD BRAHMA", "FINAL DUEL: MAHADEV"];
+      document.getElementById('stage-indicator').innerText = stageLabels[currentStage] || "BATTLE";
+
+      p1Hp = MAX_HP; p2Hp = MAX_HP;
+      updateUI();
+    }
+
+    function triggerShivaTandavCinematic() {
+      currentStage = 4;
+      document.getElementById('combat-hud').classList.remove('hidden');
+      document.getElementById('stage-indicator').classList.remove('hidden');
+      document.getElementById('stage-indicator').innerText = "RUDRA TANDAV: MAHADEV";
+      gameState = -1;
+
+      if (fighterP1) scene.remove(fighterP1);
+      if (fighterP2) scene.remove(fighterP2);
+
+      fighterP1 = buildCharacter('ganesha');
+      fighterP2 = buildCharacter('shiva');
+      fighterP1.position.set(-6, 0, 0);
+      fighterP2.position.set(4, 0, 0);
+      scene.add(fighterP1, fighterP2);
+
+      const banner = document.getElementById('cinematic-banner');
+      banner.innerText = "🔥 MAHADEV'S RUDRA TANDAV 🔥";
+      banner.classList.remove('hidden');
+
+      camera.position.set(2, 3.5, 9.0);
+      camera.lookAt(4, 2, 0);
+
+      cutsceneState = 1;
+      cutsceneTimer = 0;
+      soundLightning();
+    }
+
+    function setupShivaFight() {
+      gameState = ST_FIGHT;
+      document.getElementById('cinematic-banner').classList.add('hidden');
+      document.getElementById('stage-indicator').innerText = "FINAL DUEL: MAHADEV";
+      document.getElementById('touch-controls').classList.remove('hidden');
+
+      camera.position.set(0, CAM_DEFAULT_Y, CAM_DEFAULT_Z);
+      camera.lookAt(0, 1.8, 0);
+
+      fighterP1.position.set(-6, 0, 0);
+      fighterP2.position.set(6, 0, 0);
+      fighterP1.rotation.y = 0; fighterP2.rotation.y = Math.PI;
+
+      p1Hp = MAX_HP; p2Hp = MAX_HP;
+      updateUI();
+    }
+
+    function triggerPlayerDash() {
+      if (p1Stamina < 25) return;
+      p1Stamina -= 25; soundWhoosh(550);
+      fighterP1.position.x += (keys['KeyA'] ? -2.4 : 2.4);
+      createHitSpark(fighterP1.position.x, 1, 0, 10);
+    }
+
+    function triggerPlayerAttack() {
+      if (!fighterP1 || attackCooldownP1 > 0 || isP1Blocking) return;
+      comboStep = (comboStep % 3) + 1;
+      comboTimer = 25; attackCooldownP1 = 18;
+      soundWhoosh(350 + comboStep * 60);
+
+      fighterP1.rightArm.rotation.x = -Math.PI * 0.8;
+      fighterP1.rightArm.rotation.z = comboStep === 3 ? 0.8 : -0.5;
+
+      const dist = Math.abs(fighterP1.position.x - fighterP2.position.x);
+      if (dist < 2.6) {
+        const damage = comboStep === 3 ? 30 : 18;
+        if (chosenHero !== 'ganesha' && currentStage <= 4) {
+          p2Hp = Math.max(GANESH_MIN_HP, p2Hp - damage);
+        } else {
+          p2Hp = Math.max(0, p2Hp - damage);
+        }
+
+        soundHit(comboStep === 3);
+        screenShake = comboStep === 3 ? 0.35 : 0.18;
+        createHitSpark(fighterP2.position.x, 1.8, 0, comboStep === 3 ? 24 : 12);
+        
+        fighterP2.position.x += (fighterP2.position.x > fighterP1.position.x ? 0.35 : -0.35);
+        fighterP2.torso.rotation.x = -0.3;
+        setTimeout(() => { if (fighterP2) fighterP2.torso.rotation.x = 0; }, 150);
+
+        updateUI();
+        checkBattleProgression();
+      }
+
+      setTimeout(() => {
+        if (fighterP1) {
+          fighterP1.rightArm.rotation.x = 0; fighterP1.rightArm.rotation.z = 0;
+        }
+      }, 160);
+    }
+
+    function triggerDivineShockwave() {
+      if (p1Stamina < 40) return;
+      p1Stamina -= 40; soundLightning(); screenShake = 0.45;
+      spawnShockwave(fighterP1.position.x, 0.1, 0);
+      createHitSpark(fighterP1.position.x, 0.5, 0, 40);
+
+      const dist = Math.abs(fighterP1.position.x - fighterP2.position.x);
+      if (dist < 5.0) {
+        if (chosenHero !== 'ganesha' && currentStage <= 4) {
+          p2Hp = Math.max(GANESH_MIN_HP, p2Hp - 35);
+        } else {
+          p2Hp = Math.max(0, p2Hp - 35);
+        }
+        fighterP2.position.x += (fighterP2.position.x > fighterP1.position.x ? 1.5 : -1.5);
+        soundHit(true); updateUI(); checkBattleProgression();
+      }
+    }
+
+    function updateUI() {
+      document.getElementById('p1-bar').style.width = (p1Hp / MAX_HP * 100) + '%';
+      document.getElementById('p2-bar').style.width = (p2Hp / MAX_HP * 100) + '%';
+      document.getElementById('p1-hp-text').innerText = `${Math.ceil(p1Hp)}/${MAX_HP}`;
+      document.getElementById('p2-hp-text').innerText = `${Math.ceil(p2Hp)}/${MAX_HP}`;
+      document.getElementById('p1-stamina').style.width = p1Stamina + '%';
+    }
+
+    function checkBattleProgression() {
+      if (currentStage === 1) {
+        if (chosenHero === 'ganesha' && p2Hp <= 0) endCurrentStage(10);
+        else if (chosenHero !== 'ganesha' && p2Hp <= GANESH_MIN_HP) triggerScriptedGaneshVictory(() => endCurrentStage(10));
+      } else if (currentStage === 2) {
+        if (chosenHero === 'ganesha' && p2Hp <= 0) endCurrentStage(20);
+        else if (chosenHero !== 'ganesha' && p2Hp <= GANESH_MIN_HP) triggerScriptedGaneshVictory(() => endCurrentStage(20));
+      } else if (currentStage === 3) {
+        if (chosenHero === 'ganesha' && p2Hp <= 0) endCurrentStage(30);
+        else if (chosenHero !== 'ganesha' && p2Hp <= GANESH_MIN_HP) triggerScriptedGaneshVictory(() => endCurrentStage(30));
+      } else if (currentStage === 4) {
+        if (p2Hp <= 160 || p1Hp <= GANESH_MIN_HP) {
+          p1Hp = GANESH_MIN_HP; updateUI();
+          triggerCinematicTrishulDecapitation();
+        }
+      } else if (currentStage === 5) {
+        if (p2Hp <= 0) {
+          if (gufaFightPhase === 0) {
+            alert("⚔️ Cave Soldiers Defeated! The Cave Boss (Asur Commander) enters!");
+            gufaFightPhase = 1;
+            initCombatStage(selectedQuestHero, 'caveboss');
+          } else {
+            alert("🔥 Cave Boss Defeated! Mahagufa cleared!");
+            resumeQuestAfterFight(3);
+          }
+        }
+      } else if (currentStage === 6) {
+        // Punishing Monster Defeated
+        if (p2Hp <= 0) {
+          soundChime();
+          alert("🏆 You defeated the Guardian Monster in combat! The Sacred Calf is unlocked!");
+          if (elephantMonster) { scene.remove(elephantMonster); elephantMonster = null; }
+          document.getElementById('combat-hud').classList.add('hidden');
+          gameState = ST_TREASURE_HUNT;
+        } else if (p1Hp <= 0) {
+          alert("💀 Defeated by Guardian Monster! Treasure Hunt restarts!");
+          resetGame();
+        }
+      }
+    }
+
+    function resumeQuestAfterFight(clearedLevelNum) {
+      document.getElementById('combat-hud').classList.add('hidden');
+      gameState = ST_TREASURE_HUNT;
+      levelsCleared = Math.max(levelsCleared, clearedLevelNum);
+
+      if (clearedLevelNum === 3) {
+        currentDimension = 0;
+        mahagufaGroup.visible = false;
+        forestGroup.visible = true;
+        questPos.set(0, 0, -56);
+
+        // REVEAL SACRED ELEPHANT & GUARDIAN MONSTER TOGETHER
+        elephantCalf.visible = true;
+        if (!elephantMonster) {
+          elephantMonster = buildCharacter('monster');
+          elephantMonster.position.set(0, 0, -74);
+          forestGroup.add(elephantMonster);
+        }
+        alert("✨ All 3 Levels Cleared! The Sacred Elephant Calf and its Guardian Monster have appeared at North (Z: -74)!");
+      }
+    }
+
+    function triggerScriptedGaneshVictory(callback) {
+      soundLightning(); p1Hp = 0; updateUI();
+      timeScale = 0.2; setTimeout(() => { timeScale = 1.0; callback(); }, 700);
+    }
+
+    function endCurrentStage(nextDialogueIdx) {
+      timeScale = 0.2;
+      setTimeout(() => {
+        timeScale = 1.0;
+        document.getElementById('combat-hud').classList.add('hidden');
+        document.getElementById('stage-indicator').classList.add('hidden');
+        document.getElementById('touch-controls').classList.add('hidden');
+        gameState = ST_DIALOGUE; dialogueIndex = nextDialogueIdx;
+        showDialogue();
+      }, 700);
+    }
+
+    function triggerCinematicTrishulDecapitation() {
+      gameState = -1;
+      timeScale = 1.0;
+      soundLightning();
+
+      fighterP1.position.x = -6.0;
+      fighterP2.position.x = 6.0;
+
+      camera.position.set(0, 3.5, 13.0);
+      camera.lookAt(0, 1.8, 0);
+
+      if (fighterP2 && fighterP2.rightArm) fighterP2.rightArm.rotation.x = -Math.PI * 1.1;
+      if (fighterP2 && fighterP2.trishulInHand) fighterP2.trishulInHand.visible = false;
+      if (fighterP1 && fighterP1.rightArm) {
+        fighterP1.rightArm.rotation.x = -Math.PI * 0.6; fighterP1.rightArm.rotation.z = -0.4;
+      }
+
+      if (flyingTrishul) { scene.remove(flyingTrishul); flyingTrishul = null; }
+      flyingTrishul = buildStandaloneTrishul();
+      flyingTrishul.position.set(fighterP2.position.x, 2.3, 0);
+      scene.add(flyingTrishul);
+
+      cutsceneState = 2;
+      cutsceneTimer = 0;
+    }
+
+    // --- TREASURE HUNT QUEST ---
+    function startTreasureHuntQuest() {
+      gameState = ST_TREASURE_HUNT;
+      gateGroup.visible = false;
+      forestGroup.visible = true;
+      mazeGroup.visible = false;
+      mandirGroup.visible = false;
+      mahagufaGroup.visible = false;
+      currentDimension = 0;
+      elephantHeadCutDone = false;
+
+      if (fighterP1) scene.remove(fighterP1);
+      if (fighterP2) scene.remove(fighterP2);
+      if (decapitatedHead) scene.remove(decapitatedHead);
+
+      explorerGana = buildCharacter(selectedQuestHero);
+      explorerGana.position.set(0, 0, 8);
+      scene.add(explorerGana);
+
+      questPos.set(0, 0, 8);
+      questYaw = 0; questPitch = 0.35;
+
+      document.getElementById('quest-hud').classList.remove('hidden');
+      document.getElementById('stage-indicator').classList.remove('hidden');
+      document.getElementById('stage-indicator').innerText = "QUEST: 360° FOREST";
+      document.getElementById('ctrl-combat').classList.add('hidden');
+      document.getElementById('ctrl-quest').classList.remove('hidden');
+      document.getElementById('minimap-container').classList.remove('hidden');
+    }
+
+    function checkQuestInteraction() {
+      if (gameState !== ST_TREASURE_HUNT) return;
+
+      // 1. Maze Mode (Diamond collection)
+      if (currentDimension === 1) {
+        mazeDiamonds.forEach((d) => {
+          if (!d.collected && questPos.distanceTo(new THREE.Vector3(d.x, 0, d.z)) < 3.5) {
+            d.collected = true;
+            d.group.visible = false;
+            diamondsCollectedCount++;
+            soundChime();
+            createHitSpark(d.x, 1.6, d.z, 25);
+            document.getElementById('diamond-counter').innerText = `${diamondsCollectedCount}/3`;
+            if (diamondsCollectedCount >= 3) {
+              mazeExitStone.material.color.setHex(0x38bdf8);
+              mazeExitStone.material.emissive.setHex(0x0284c7);
+            }
+          }
+        });
+
+        if (questPos.distanceTo(mazeExitStone.position) < 4.0) {
+          if (diamondsCollectedCount >= 3) {
+            soundChime();
+            currentDimension = 0;
+            mazeGroup.visible = false; forestGroup.visible = true;
+            questPos.set(-16, 0, -22);
+            levelsCleared = Math.max(levelsCleared, 1);
+            document.getElementById('level-counter').innerText = "Mandir";
+          }
+          return;
+        }
+      }
+
+      // 2. Surya Mandir
+      if (currentDimension === 2) {
+        if (questPos.distanceTo(suryaAltar.position) < 4.5) {
+          soundChime();
+          currentDimension = 0;
+          mandirGroup.visible = false; forestGroup.visible = true;
+          questPos.set(18, 0, -30);
+          levelsCleared = Math.max(levelsCleared, 2);
+          document.getElementById('level-counter').innerText = "Mahagufa";
+          return;
+        }
+      }
+
+      // 3. Forest Tree Entrances
+      if (currentDimension === 0) {
+        if (questPos.distanceTo(tree1Maze.position) < 4.5) {
+          soundWhoosh(500);
+          currentDimension = 1;
+          forestGroup.visible = false; mazeGroup.visible = true;
+          questPos.set(0, 0, 36);
+          document.getElementById('level-counter').innerText = "Maze";
+          return;
+        }
+        if (questPos.distanceTo(tree2Mandir.position) < 4.5) {
+          soundWhoosh(500);
+          currentDimension = 2;
+          forestGroup.visible = false; mandirGroup.visible = true;
+          questPos.set(0, 0, 16);
+          document.getElementById('level-counter').innerText = "Mandir";
+          return;
+        }
+        if (questPos.distanceTo(tree3Mahagufa.position) < 4.5) {
+          soundWhoosh(500);
+          currentDimension = 3;
+          forestGroup.visible = false;
+          currentStage = 5;
+          gufaFightPhase = 0;
+          initCombatStage(selectedQuestHero, 'soldier');
+          return;
+        }
+
+        // Guardian Monster 3-Riddles Interaction
+        if (elephantCalf.visible && elephantMonster && questPos.distanceTo(elephantMonster.position) < 6.5) {
+          triggerGuardianRiddles();
+        }
+      }
+    }
+
+    // 3 RIDDLES BY GUARDIAN MONSTER
+    let guardianRiddleIndex = 1;
+    function triggerGuardianRiddles() {
+      guardianRiddleIndex = 1;
+      askNextGuardianRiddle();
+    }
+
+    function askNextGuardianRiddle() {
+      const modal = document.getElementById('riddle-modal');
+      const title = document.getElementById('riddle-title');
+      const text = document.getElementById('riddle-text');
+      const opts = document.getElementById('riddle-options');
+      opts.innerHTML = '';
+      modal.classList.remove('hidden');
+
+      if (guardianRiddleIndex === 1) {
+        title.innerText = "Guardian Monster Trial (1/3)";
+        text.innerText = "Paheli 1: 'Srishti ke palankarta Bhagwan Vishnu ke divya vahan ka naam kya hai?'";
+        buildGuardianButtons(["Garuda", "Airavata", "Nandi"], "Garuda", 2);
+      } else if (guardianRiddleIndex === 2) {
+        title.innerText = "Guardian Monster Trial (2/3)";
+        text.innerText = "Paheli 2: 'Devraj Indra ke shwet hasti (white elephant) ka kya naam hai?'";
+        buildGuardianButtons(["Airavata", "Sheshnag", "Ucchaihshravas"], "Airavata", 3);
+      } else if (guardianRiddleIndex === 3) {
+        title.innerText = "Guardian Monster Trial (3/3)";
+        text.innerText = "Paheli 3: 'Brahma Dev ke niyam anusar shishu ka mastak kis pavitra disha me hona chahiye?'";
+        buildGuardianButtons(["Uttar Disha (North)", "Dakshin (South)", "Poorva (East)"], "Uttar", 4);
+      }
+    }
+
+    function buildGuardianButtons(choices, correctKeyword, nextStep) {
+      const opts = document.getElementById('riddle-options');
+      const modal = document.getElementById('riddle-modal');
+
+      choices.forEach(ch => {
+        const b = document.createElement('button');
+        b.className = 'riddle-choice'; b.innerText = ch;
+        b.onclick = () => {
+          modal.classList.add('hidden');
+          if (ch.includes(correctKeyword)) {
+            soundChime();
+            if (nextStep <= 3) {
+              guardianRiddleIndex = nextStep;
+              askNextGuardianRiddle();
+            } else {
+              // ALL 3 CORRECT: MONSTER STEPS ASIDE PEACEFULLY
+              alert("✨ All 3 Riddles Solved! The Guardian Monster bows and steps aside! Approach the Elephant Calf!");
+              if (elephantMonster) { scene.remove(elephantMonster); elephantMonster = null; }
+            }
+          } else {
+            // WRONG ANSWER: MUST FIGHT MONSTER
+            soundHit(true);
+            alert("⚔️ Wrong Answer! The Guardian Monster roars in fury and attacks!");
+            currentStage = 6;
+            initCombatStage(selectedQuestHero, 'monster');
+          }
+        };
+        opts.appendChild(b);
+      });
+    }
+
+    // BGMI CONTEXT ACTION: SEVER ELEPHANT HEAD
+    function triggerSeverElephantHead() {
+      if (elephantHeadCutDone) return;
+      elephantHeadCutDone = true;
+      document.getElementById('bgmi-interact-btn').classList.add('hidden');
+
+      soundLightning();
+      soundHit(true);
+      screenShake = 0.6;
+      spawnShockwave(elephantCalf.position.x, 1.5, elephantCalf.position.z);
+      createHitSpark(elephantCalf.position.x, 2.0, elephantCalf.position.z, 70);
+
+      alert("⚔️ Divine Destiny Accomplished! The Sacred Gaj-Mastak has been reverently obtained! Returning to Kailash for Pran-Pratishtha...");
+
+      setTimeout(() => {
+        document.getElementById('quest-hud').classList.add('hidden');
+        document.getElementById('minimap-container').classList.add('hidden');
+        forestGroup.visible = false;
+        gateGroup.visible = true;
+        scene.remove(explorerGana);
+        triggerMahadevHeadRestorationAnimation();
+      }, 1200);
+    }
+
+    // ACCURATE PURANIC RESTORATION (HANDS-ON RESTORATION)
+    function triggerMahadevHeadRestorationAnimation() {
+      gameState = -1;
+
+      fighterP1 = buildCharacter('ganesha', true);
+      fighterP1.position.set(0, 0.35, 0);
+      fighterP1.rotation.z = Math.PI / 2; // Flat on ground
+      fighterP1.rotation.y = 0;
+      if (fighterP1.headGroup) fighterP1.torso.remove(fighterP1.headGroup);
+      scene.add(fighterP1);
+
+      mahadevRestorer = buildCharacter('shiva', true); // Without weapons
+      mahadevRestorer.position.set(1.5, 0, 0);
+      mahadevRestorer.rotation.y = -Math.PI / 2;
+      mahadevRestorer.torso.position.y = 1.1;
+      mahadevRestorer.torso.rotation.x = 0.35;
+      scene.add(mahadevRestorer);
+
+      heldElephantHead = buildGajanandHead();
+      heldElephantHead.position.set(0.65, 0.95, 0);
+      scene.add(heldElephantHead);
+
+      mahadevRestorer.rightArm.rotation.x = -Math.PI * 0.45;
+      mahadevRestorer.leftArm.rotation.x = -Math.PI * 0.45;
+
+      camera.position.set(0, 2.5, 6.5);
+      camera.lookAt(0, 0.8, 0);
+
+      const banner = document.getElementById('cinematic-banner');
+      banner.innerText = "✨ MAHADEV ATTACHES THE SACRED HEAD WITH HIS OWN HANDS ✨";
+      banner.classList.remove('hidden');
+
+      soundChime();
+      cutsceneState = 4;
+      cutsceneTimer = 0;
+    }
+
+    // --- MAIN ENGINE ANIMATION LOOP ---
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const rawDelta = clock.getDelta();
+      const delta = Math.min(rawDelta, 0.1) * timeScale;
+      const elapsed = clock.getElapsedTime();
+
+      // Ambient sparks
+      const positions = particleSystem.geometry.attributes.position.array;
+      for (let i = 1; i < pCount * 3; i += 3) {
+        positions[i] -= delta * 0.5;
+        if (positions[i] < 0) positions[i] = 12;
+      }
+      particleSystem.geometry.attributes.position.needsUpdate = true;
+
+      // Sparks
+      for (let i = sparks.length - 1; i >= 0; i--) {
+        const s = sparks[i];
+        const arr = s.mesh.geometry.attributes.position.array;
+        for (let j = 0; j < s.vel.length; j++) {
+          arr[j*3] += s.vel[j].x * delta;
+          arr[j*3+1] += s.vel[j].y * delta;
+          arr[j*3+2] += s.vel[j].z * delta;
+          s.vel[j].y -= 9.8 * delta;
+        }
+        s.mesh.geometry.attributes.position.needsUpdate = true;
+        s.life -= delta;
+        if (s.life <= 0) { scene.remove(s.mesh); sparks.splice(i, 1); }
+      }
+
+      // Shockwaves
+      for (let i = shockwaves.length - 1; i >= 0; i--) {
+        const sw = shockwaves[i];
+        sw.scale += delta * 12; sw.opacity -= delta * 1.5;
+        sw.mesh.scale.set(sw.scale, sw.scale, 1);
+        sw.mesh.material.opacity = Math.max(0, sw.opacity);
+        if (sw.opacity <= 0) { scene.remove(sw.mesh); shockwaves.splice(i, 1); }
+      }
+
+      // 4-LEGGED ANIMALS REAL WALKING & LEG SWING
+      forestAnimals.forEach(a => {
+        const t = elapsed * a.walkSpeed + a.timeOffset;
+        a.group.position.z = a.baseZ + Math.sin(t) * a.patrolDist;
+        a.group.rotation.y = Math.cos(t) >= 0 ? 0 : Math.PI;
+
+        // Alternate front/back legs
+        a.legs[0].rotation.x = Math.sin(t * 6) * 0.45;
+        a.legs[1].rotation.x = -Math.sin(t * 6) * 0.45;
+        a.legs[2].rotation.x = -Math.sin(t * 6) * 0.45;
+        a.legs[3].rotation.x = Math.sin(t * 6) * 0.45;
+      });
+
+      // --- CUTSCENE STATE ENGINE ---
+      if (cutsceneState === 1 && fighterP2) {
+        cutsceneTimer += delta;
+        fighterP2.rotation.y += delta * 6.0;
+        fighterP2.torso.position.y = 1.6 + Math.sin(cutsceneTimer * 12) * 0.4;
+        fighterP2.rightArm.rotation.x = Math.sin(cutsceneTimer * 14) * 1.2;
+        fighterP2.leftArm.rotation.x = -Math.sin(cutsceneTimer * 14) * 1.2;
+        createHitSpark(fighterP2.position.x, 1.5, 0, 4);
+        screenShake = 0.3;
+        if (cutsceneTimer > 3.0) { cutsceneState = 0; setupShivaFight(); }
+      } else if (cutsceneState === 2 && flyingTrishul && fighterP1) {
+        flyingTrishul.position.x -= 24.0 * delta;
+        flyingTrishul.rotation.x += 16.0 * delta;
+        createHitSpark(flyingTrishul.position.x, flyingTrishul.position.y, 0, 3);
+
+        if (flyingTrishul.position.x <= fighterP1.position.x + 0.3) {
+          scene.remove(flyingTrishul);
+          flyingTrishul = null;
+
+          soundLightning(); soundHit(true);
+          if (fighterP1.staff) fighterP1.staff.visible = false;
+          spawnShockwave(fighterP1.position.x, 1.8, 0);
+          createHitSpark(fighterP1.position.x, 2.0, 0, 60);
+
+          if (fighterP1.headGroup) {
+            const headWorldPos = new THREE.Vector3();
+            fighterP1.headGroup.getWorldPosition(headWorldPos);
+            fighterP1.torso.remove(fighterP1.headGroup);
+            decapitatedHead = fighterP1.headGroup;
+            decapitatedHead.position.copy(headWorldPos);
+            scene.add(decapitatedHead);
+          }
+
+          cutsceneState = 3; cutsceneTimer = 0; headVelY = 0.14; timeScale = 0.35;
+        }
+      } else if (cutsceneState === 3 && decapitatedHead && fighterP1) {
+        cutsceneTimer += delta;
+        if (decapitatedHead.position.y > 0.36) {
+          decapitatedHead.position.y += headVelY;
+          decapitatedHead.position.x += headVelX;
+          headVelY -= 0.35 * delta;
+          decapitatedHead.rotation.z += 8.0 * delta;
+          decapitatedHead.rotation.y += 6.0 * delta;
+        } else {
+          decapitatedHead.position.y = 0.36;
+        }
+
+        fighterP1.torso.position.y = THREE.MathUtils.lerp(fighterP1.torso.position.y, 0.4, 0.08);
+        fighterP1.rotation.z = THREE.MathUtils.lerp(fighterP1.rotation.z, Math.PI / 2, 0.08);
+
+        if (cutsceneTimer > 1.2) {
+          cutsceneState = 0; timeScale = 1.0;
+          document.getElementById('combat-hud').classList.add('hidden');
+          document.getElementById('stage-indicator').classList.add('hidden');
+          gameState = ST_DIALOGUE; dialogueIndex = 35;
+          showDialogue();
+        }
+      } else if (cutsceneState === 4 && heldElephantHead && mahadevRestorer && fighterP1) {
+        cutsceneTimer += delta;
+        heldElephantHead.position.x = THREE.MathUtils.lerp(heldElephantHead.position.x, 0, 0.04);
+        heldElephantHead.position.y = THREE.MathUtils.lerp(heldElephantHead.position.y, 0.6, 0.04);
+        mahadevRestorer.position.x = THREE.MathUtils.lerp(mahadevRestorer.position.x, 1.1, 0.04);
+
+        if (cutsceneTimer > 2.5) {
+          cutsceneState = 0;
+          soundLightning(); soundChime();
+
+          scene.remove(heldElephantHead);
+          heldElephantHead.position.set(0, 0.95, 0);
+          heldElephantHead.rotation.set(0, 0, 0);
+          fighterP1.torso.add(heldElephantHead);
+
+          fighterP1.rotation.z = 0;
+          fighterP1.position.set(0, 0, 0);
+          fighterP1.torso.position.y = 1.6;
+          fighterP1.rightArm.rotation.x = -Math.PI * 0.5;
+          fighterP1.leftArm.rotation.x = -Math.PI * 0.3;
+
+          mahadevRestorer.torso.position.y = 1.6;
+          mahadevRestorer.torso.rotation.x = 0;
+          mahadevRestorer.position.x = 2.4;
+          mahadevRestorer.rightArm.rotation.x = -Math.PI * 0.45;
+
+          spawnShockwave(0, 0.2, 0);
+          createHitSpark(0, 1.8, 0, 80);
+
+          setTimeout(() => {
+            document.getElementById('cinematic-banner').classList.add('hidden');
+            gameState = ST_DIALOGUE; dialogueIndex = 50;
+            showDialogue();
+          }, 1800);
+        }
+      }
+
+      // --- COMBAT LOOP ---
+      if (gameState === ST_FIGHT && fighterP1 && fighterP2) {
+        p1Stamina = Math.min(100, p1Stamina + delta * 20);
+        if (attackCooldownP1 > 0) attackCooldownP1--;
+        if (comboTimer > 0) comboTimer--; else comboStep = 0;
+
+        let isMovingP1 = false;
+        if (keys['KeyA'] || keys['ArrowLeft']) { fighterP1.position.x -= 4.2 * delta; isMovingP1 = true; }
+        if (keys['KeyD'] || keys['ArrowRight']) { fighterP1.position.x += 4.2 * delta; isMovingP1 = true; }
+        fighterP1.position.x = Math.max(-7, Math.min(6.5, fighterP1.position.x));
+
+        if (fighterP1.position.x < fighterP2.position.x) {
+          fighterP1.rotation.y = 0; fighterP2.rotation.y = Math.PI;
+        } else {
+          fighterP1.rotation.y = Math.PI; fighterP2.rotation.y = 0;
+        }
+
+        if (isMovingP1) {
+          fighterP1.rightLeg.rotation.x = Math.sin(elapsed * 12) * 0.6;
+          fighterP1.leftLeg.rotation.x = -Math.sin(elapsed * 12) * 0.6;
+        } else {
+          fighterP1.rightLeg.rotation.x = 0; fighterP1.leftLeg.rotation.x = 0;
+        }
+
+        if (isP1Blocking) {
+          fighterP1.leftArm.rotation.x = -1.2; fighterP1.leftArm.rotation.z = 0.5;
+        } else if (attackCooldownP1 === 0) {
+          fighterP1.leftArm.rotation.x = 0; fighterP1.leftArm.rotation.z = 0;
+        }
+
+        aiDecisionTimer -= delta;
+        const targetX = fighterP1.position.x;
+        const currentX = fighterP2.position.x;
+        const dist = Math.abs(currentX - targetX);
+        const directionToPlayer = Math.sign(targetX - currentX);
+
+        if (aiDecisionTimer <= 0) {
+          if (dist > 2.2) aiMoveDirection = directionToPlayer;
+          else if (dist < 1.4) aiMoveDirection = Math.random() < 0.4 ? -directionToPlayer : 0;
+          else aiMoveDirection = Math.random() < 0.3 ? -directionToPlayer : 0;
+          aiDecisionTimer = 0.4 + Math.random() * 0.4;
+        }
+
+        fighterP2.position.x += aiMoveDirection * 3.0 * delta;
+        fighterP2.position.x = Math.max(-6.8, Math.min(6.8, fighterP2.position.x));
+
+        if (dist <= 3.0 && aiCooldown <= 0 && Math.random() < 0.09) {
+          fighterP2.rightArm.rotation.x = -Math.PI * 0.75;
+          soundWhoosh(280); aiCooldown = 26;
+
+          let dmg = currentStage >= 4 ? 22 : 14;
+          if (isP1Blocking) dmg *= 0.2;
+          else { soundHit(false); screenShake = 0.2; }
+
+          if (chosenHero === 'ganesha' && currentStage <= 4) {
+            p1Hp = Math.max(GANESH_MIN_HP, p1Hp - dmg);
+          } else {
+            p1Hp = Math.max(0, p1Hp - dmg);
+          }
+          createHitSpark(fighterP1.position.x, 1.6, 0, 12);
+          updateUI(); checkBattleProgression();
+          setTimeout(() => { if (fighterP2) fighterP2.rightArm.rotation.x = 0; }, 180);
+        }
+        if (aiCooldown > 0) aiCooldown--;
+
+        camera.position.set(0, CAM_DEFAULT_Y, CAM_DEFAULT_Z);
+        camera.lookAt(0, 1.8, 0);
+        updateUI();
+      }
+
+      // --- QUEST LOOP (BGMI-STYLE CAMERA & REAL-TIME CONTROLS) ---
+      if (gameState === ST_TREASURE_HUNT) {
+        if (attackCooldownP1 > 0) attackCooldownP1--;
+
+        const moveSpeed = 9.0;
+        const forward = new THREE.Vector3(-Math.sin(questYaw), 0, -Math.cos(questYaw));
+        const right = new THREE.Vector3(Math.cos(questYaw), 0, -Math.sin(questYaw));
+        const moveDir = new THREE.Vector3(0, 0, 0);
+
+        if (keys['KeyW'] || keys['ArrowUp']) moveDir.add(forward);
+        if (keys['KeyS'] || keys['ArrowDown']) moveDir.sub(forward);
+        if (keys['KeyA'] || keys['ArrowLeft']) moveDir.sub(right);
+        if (keys['KeyD'] || keys['ArrowRight']) moveDir.add(right);
+
+        if (moveDir.lengthSq() > 0) {
+          moveDir.normalize();
+          const nextPos = questPos.clone().addScaledVector(moveDir, moveSpeed * delta);
+          let canMove = true;
+
+          if (currentDimension === 1) {
+            for (let i = 0; i < mazeWalls.length; i++) {
+              const w = mazeWalls[i];
+              if (nextPos.x >= w.minX && nextPos.x <= w.maxX && nextPos.z >= w.minZ && nextPos.z <= w.maxZ) {
+                canMove = false; break;
+              }
+            }
+          }
+
+          if (canMove) questPos.copy(nextPos);
+
+          const targetAngle = Math.atan2(-moveDir.x, -moveDir.z);
+          if (explorerGana) {
+            explorerGana.rotation.y = THREE.MathUtils.lerp(explorerGana.rotation.y, targetAngle, 0.2);
+            explorerGana.rightLeg.rotation.x = Math.sin(elapsed * 16) * 0.65;
+            explorerGana.leftLeg.rotation.x = -Math.sin(elapsed * 16) * 0.65;
+          }
+        } else if (explorerGana) {
+          explorerGana.rightLeg.rotation.x = 0; explorerGana.leftLeg.rotation.x = 0;
+        }
+
+        if (currentDimension === 0) {
+          questPos.x = Math.max(-80, Math.min(80, questPos.x));
+          questPos.z = Math.max(-95, Math.min(25, questPos.z));
+        }
+
+        if (explorerGana) explorerGana.position.copy(questPos);
+
+        // CHECK CONTEXT BUTTON DISTANCE TO ELEPHANT CALF (BGMI-STYLE)
+        const interactBtn = document.getElementById('bgmi-interact-btn');
+        if (currentDimension === 0 && elephantCalf.visible && !elephantMonster && !elephantHeadCutDone) {
+          const distToElephant = questPos.distanceTo(elephantCalf.position);
+          if (distToElephant < 4.0) {
+            interactBtn.classList.remove('hidden');
+          } else {
+            interactBtn.classList.add('hidden');
+          }
+        } else {
+          interactBtn.classList.add('hidden');
+        }
+
+        // Camera mode positioning
+        if (questViewMode === 'FPP') {
+          camera.position.set(questPos.x, 1.7, questPos.z);
+          const lookTarget = new THREE.Vector3(
+            questPos.x - Math.sin(questYaw) * Math.cos(questPitch),
+            1.7 + Math.sin(questPitch),
+            questPos.z - Math.cos(questYaw) * Math.cos(questPitch)
+          );
+          camera.lookAt(lookTarget);
+        } else {
+          const camDist = 11.0;
+          camera.position.set(
+            questPos.x + camDist * Math.sin(questYaw) * Math.cos(questPitch),
+            questPos.y + 1.8 + camDist * Math.sin(questPitch),
+            questPos.z + camDist * Math.cos(questYaw) * Math.cos(questPitch)
+          );
+          camera.lookAt(questPos.x, questPos.y + 1.6, questPos.z);
+        }
+
+        const needle = document.getElementById('compass-needle');
+        if (needle) needle.style.transform = `rotate(${THREE.MathUtils.radToDeg(-questYaw)}deg)`;
+
+        drawMinimap();
+      }
+
+      if (screenShake > 0) {
+        camera.position.x += (Math.random() - 0.5) * screenShake;
+        camera.position.y += (Math.random() - 0.5) * screenShake;
+        screenShake -= delta * 0.9;
+      }
+
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    function resetGame() {
+      document.getElementById('dialogue-modal').classList.add('hidden');
+      document.getElementById('fighter-modal').classList.add('hidden');
+      document.getElementById('quest-hero-modal').classList.add('hidden');
+      document.getElementById('combat-hud').classList.add('hidden');
+      document.getElementById('quest-hud').classList.add('hidden');
+      document.getElementById('stage-indicator').classList.add('hidden');
+      document.getElementById('crosshair').classList.add('hidden');
+      document.getElementById('bgmi-interact-btn').classList.add('hidden');
+      document.getElementById('ctrl-combat').classList.remove('hidden');
+      document.getElementById('ctrl-quest').classList.add('hidden');
+      document.getElementById('touch-controls').classList.add('hidden');
+      document.getElementById('minimap-container').classList.add('hidden');
+      document.getElementById('start-modal').classList.remove('hidden');
+      
+      forestGroup.visible = false;
+      mazeGroup.visible = false;
+      mandirGroup.visible = false;
+      mahagufaGroup.visible = false;
+      gateGroup.visible = true;
+      currentDimension = 0;
+      elephantCalf.visible = false;
+      diamondsCollectedCount = 0;
+      levelsCleared = 0;
+      elephantHeadCutDone = false;
+
+      mazeDiamonds.forEach(d => { d.collected = false; d.group.visible = true; });
+
+      if (fighterP1) scene.remove(fighterP1);
+      if (fighterP2) scene.remove(fighterP2);
+      if (mahadevRestorer) scene.remove(mahadevRestorer);
+      if (explorerGana) scene.remove(explorerGana);
+      if (decapitatedHead) scene.remove(decapitatedHead);
+      if (heldElephantHead) scene.remove(heldElephantHead);
+      if (flyingTrishul) { scene.remove(flyingTrishul); flyingTrishul = null; }
+      if (elephantMonster) { scene.remove(elephantMonster); elephantMonster = null; }
+
+      camera.position.set(0, CAM_DEFAULT_Y, CAM_DEFAULT_Z);
+      camera.lookAt(0, 1.8, 0);
+
+      gameState = ST_START; currentStage = 1;
+      dialogueIndex = 0; cutsceneState = 0;
+    }
+
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+  </script>
+</body>
+</html>
